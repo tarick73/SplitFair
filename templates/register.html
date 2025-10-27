@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 400px;
+            margin: 40px auto;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        label {
+            font-weight: 600;
+        }
+        input {
+            padding: 8px;
+            font-size: 14px;
+            width: 100%;
+        }
+        .errorlist {
+            color: red;
+            font-size: 13px;
+            margin: 4px 0 0 0;
+            padding: 0;
+            list-style: none;
+        }
+        button {
+            padding: 10px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        a {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<h1>Create account</h1>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div>
+        <label>Username</label><br>
+        {{ form.username }}
+        {{ form.username.errors }}
+    </div>
+
+    <div>
+        <label>Email (optional)</label><br>
+        {{ form.email }}
+        {{ form.email.errors }}
+    </div>
+
+    <div>
+        <label>Password</label><br>
+        {{ form.password1 }}
+        {{ form.password1.errors }}
+    </div>
+
+    <div>
+        <label>Repeat password</label><br>
+        {{ form.password2 }}
+        {{ form.password2.errors }}
+    </div>
+
+    <button type="submit">Sign up</button>
+</form>
+
+<p>
+    Already have an account?
+    <a href="{% url 'login' %}">Log in</a>
+</p>
+
+<p>
+    <a href="{% url 'index' %}">Back to home</a>
+</p>
+
+</body>
+</html>

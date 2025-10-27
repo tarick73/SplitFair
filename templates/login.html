@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Log in</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 400px;
+            margin: 40px auto;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        label {
+            font-weight: 600;
+        }
+        input {
+            padding: 8px;
+            font-size: 14px;
+            width: 100%;
+        }
+        .errorlist {
+            color: red;
+            font-size: 13px;
+            margin: 4px 0 0 0;
+            padding: 0;
+            list-style: none;
+        }
+        button {
+            padding: 10px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        a {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Log in</h1>
+
+<form method="post" action="{% url 'login' %}">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <div>
+        <label>Username</label><br>
+        {{ form.username }}
+        {{ form.username.errors }}
+    </div>
+
+    <div>
+        <label>Password</label><br>
+        {{ form.password }}
+        {{ form.password.errors }}
+    </div>
+
+    <button type="submit">Sign in</button>
+</form>
+
+<p>
+    Don't have an account yet?
+    <a href="{% url 'register' %}">Sign up</a>
+</p>
+
+<p>
+    <a href="{% url 'index' %}">Back to home</a>
+</p>
+
+</body>
+</html>

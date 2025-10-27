@@ -64,7 +64,7 @@ ROOT_URLCONF = 'SplitFair.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -130,3 +130,24 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_REDIRECT_URL = "index"
+LOGOUT_REDIRECT_URL = "index"
+
+# куда редиректить после успешного логина
+LOGIN_REDIRECT_URL = "index"
+
+# куда редиректить после логаута
+LOGOUT_REDIRECT_URL = "index"
+
+# где лежат твои шаблоны. если у тебя в TEMPLATES уже указано BASE_DIR / "templates",
+# ничего менять не надо. должно быть примерно так:
+# TEMPLATES = [
+#     {
+#         "BACKEND": "django.template.backends.django.DjangoTemplates",
+#         "DIRS": [BASE_DIR / "templates"],
+#         "APP_DIRS": True,
+#         ...
+#     }
+# ]
+
