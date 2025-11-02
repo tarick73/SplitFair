@@ -1,6 +1,8 @@
 # accounts/views.py
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from .forms import RegisterForm
 
 
@@ -22,3 +24,8 @@ def register_view(request):
         form = RegisterForm()
 
     return render(request, "register.html", {"form": form})
+
+
+def csrf_token_view(request):
+    token = get_token(request)
+    return JsonResponse({'csrfToken': token})
