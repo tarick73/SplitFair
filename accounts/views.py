@@ -16,9 +16,12 @@ def register_view(request):
         if form.is_valid():
             user = form.save()   # создаём пользователя
             login(request, user) # сразу логиним нового юзера
-            return redirect("index")
+            return redirect("dashboard")  # редирект на страницу дашборда
     else:
         # если просто зашли на страницу регистрации (GET)
         form = RegisterForm()
 
     return render(request, "register.html", {"form": form})
+
+def dashboard_view(request):
+    return render(request, "dashboard.html")
