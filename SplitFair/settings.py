@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
 
     # ----------------------------------
     # Your Project Apps
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
 # (The rest of your settings file continues below)
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -140,14 +142,40 @@ LOGIN_REDIRECT_URL = "index"
 # куда редиректить после логаута
 LOGOUT_REDIRECT_URL = "index"
 
-# где лежат твои шаблоны. если у тебя в TEMPLATES уже указано BASE_DIR / "templates",
-# ничего менять не надо. должно быть примерно так:
-# TEMPLATES = [
-#     {
-#         "BACKEND": "django.template.backends.django.DjangoTemplates",
-#         "DIRS": [BASE_DIR / "templates"],
-#         "APP_DIRS": True,
-#         ...
-#     }
-# ]
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+
+   "http://localhost:5173",
+]
+
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# CSRF settings
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# CSRF trusted origins
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# CRITICAL: Must be False so JavaScript can read the cookie
+CSRF_COOKIE_HTTPONLY = False

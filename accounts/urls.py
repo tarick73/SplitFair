@@ -1,7 +1,7 @@
 # accounts/urls.py
 from django.urls import path
 from django.contrib.auth.views import LoginView, LogoutView
-from .views import index_view, register_view
+from .views import index_view, register_view, csrf_token_view
 
 urlpatterns = [
     # главная страница "/"
@@ -24,4 +24,7 @@ urlpatterns = [
         LogoutView.as_view(),
         name="logout",
     ),
+    
+    # CSRF token endpoint
+    path("csrf-token/", csrf_token_view, name="csrf_token"),
 ]
