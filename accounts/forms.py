@@ -1,6 +1,7 @@
 # accounts/forms.py
 from django import forms
 from django.contrib.auth.models import User
+from events.models import Event
 
 
 class RegisterForm(forms.ModelForm):
@@ -32,3 +33,17 @@ class RegisterForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+class EventForm(forms.ModelForm):
+    participants = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Enter participant names separated by commas",
+        required=False
+    )
+
+    class Meta:
+        model = Event
+        fields = ['title']  # Only include title as other fields are auto-populated
+        widgets = {
+            'title': forms.TextInput(attrs={'placeholder': 'Event name'})
+        }

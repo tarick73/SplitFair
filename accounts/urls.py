@@ -2,6 +2,7 @@
 from django.urls import path
 from django.contrib.auth.views import LoginView, LogoutView
 from .views import index_view, register_view, dashboard_view
+from events.views import create_event_view
 
 urlpatterns = [
     # главная страница "/"
@@ -26,4 +27,6 @@ urlpatterns = [
     ),
 
     path("dashboard/", dashboard_view, name="dashboard"),
+
+    path("event/create/", create_event_view, name="create_event"),
 ]
