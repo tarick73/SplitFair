@@ -149,7 +149,7 @@ export const authService = {
         csrfmiddlewaretoken: token.substring(0, 10) + '...'
       });
 
-      const response = await api.post('/login/', formData, {
+        const response = await api.post('/api/login/', formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },

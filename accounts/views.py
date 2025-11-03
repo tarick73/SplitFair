@@ -1,31 +1,50 @@
 # accounts/views.py
-from django.shortcuts import render, redirect
-from django.contrib.auth import login
+from django.contrib.auth import authenticate, login
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.middleware.csrf import get_token
+from django.shortcuts import render, redirect
 from .forms import RegisterForm
 
 
 def index_view(request):
-    # просто рендер главной страницы
+    # просто рендер головної сторінки
     return render(request, "index.html")
 
 
 def register_view(request):
-    # если форма отправлена (POST)
+    # якщо форма відправлена (POST)
     if request.method == "POST":
         form = RegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()   # создаём пользователя
-            login(request, user) # сразу логиним нового юзера
+            user = form.save()   # створюємо користувача
+            login(request, user) # одразу логінимо
             return redirect("index")
     else:
-        # если просто зашли на страницу регистрации (GET)
         form = RegisterForm()
 
     return render(request, "register.html", {"form": form})
 
 
+@require_POST
+@csrf_exempt  # 👉 тимчасово можна залишити, поки не переконаєшся що CSRF працює з фронтенду
+def api_login(request):
+  
+    username = request.POST.get('username')
+    password = request.POST.get('password')
+
+    user = authenticate(request, username=username, password=password)
+    if user is not None:
+        login(request, user)
+        return JsonResponse({
+            "success": True,
+            "user": {"id": user.id, "username": user.username}
+        })
+    return JsonResponse({"success": False, "message": "Invalid credentials"}, status=401)
+
+
 def csrf_token_view(request):
+  
     token = get_token(request)
     return JsonResponse({'csrfToken': token})
