@@ -21,21 +21,14 @@ def register_view(request):
     if request.method == "POST":
         form = RegisterForm(request.POST)
         if form.is_valid():
-<<<<<<< HEAD
-            user = form.save()   # створюємо користувача
-            login(request, user) # одразу логінимо
-            return redirect("index")
-=======
             user = form.save()   # создаём пользователя
             login(request, user) # сразу логиним нового юзера
             return redirect("dashboard")  # редирект на страницу дашборда
->>>>>>> origin/Events
     else:
         form = RegisterForm()
 
     return render(request, "register.html", {"form": form})
 
-<<<<<<< HEAD
 
 @require_POST
 @csrf_exempt  # 👉 тимчасово можна залишити, поки не переконаєшся що CSRF працює з фронтенду
@@ -58,7 +51,7 @@ def csrf_token_view(request):
   
     token = get_token(request)
     return JsonResponse({'csrfToken': token})
-=======
+
 @login_required
 @ensure_csrf_cookie
 def dashboard_view(request):
@@ -66,4 +59,3 @@ def dashboard_view(request):
     return render(request, "dashboard.html", {
         "user_events": user_events
     })
->>>>>>> origin/Events
