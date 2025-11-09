@@ -1,6 +1,11 @@
 from django.urls import path
 from django.contrib.auth.views import LoginView, LogoutView
+<<<<<<< HEAD
 from .views import index_view, register_view, csrf_token_view, api_login
+=======
+from .views import index_view, register_view, dashboard_view
+from events.views import create_event_view
+>>>>>>> origin/Events
 
 urlpatterns = [
     # головна сторінка
@@ -21,7 +26,13 @@ urlpatterns = [
         name="logout",
     ),
 
+<<<<<<< HEAD
     # React-friendly API endpoints
     path("api/login/", api_login, name="api_login"),
     path("csrf-token/", csrf_token_view, name="csrf_token"),
+=======
+    path("dashboard/", dashboard_view, name="dashboard"),
+
+    path("event/create/", create_event_view, name="create_event"),
+>>>>>>> origin/Events
 ]

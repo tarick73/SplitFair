@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root { --accent:#007bff; --muted:#6c757d; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin:0; background:#353535; color:#fff; }
+    .container { padding:24px; min-height:100vh; box-sizing:border-box; }
+    h1 { margin:0 0 18px; }
+    .plus-button {
+      position:fixed; right:24px; bottom:24px;
+      width:56px; height:56px; border-radius:50%; border:0;
+      background:var(--accent); color:#fff; font-size:28px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow:0 6px 18px rgba(0,0,0,0.35);
+      transition: transform 0.2s, background-color 0.2s;
+    }
+    .plus-button:hover { transform:scale(1.05); background:#0056b3; }
+    .modal {
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6);
+      align-items:center; justify-content:center; padding:20px; z-index:1000;
+    }
+    .modal.show { display:flex; }
+    .modal-content {
+      background:#fff; color:#222; padding:20px; border-radius:10px; max-width:640px; width:100%;
+      box-shadow:0 10px 30px rgba(0,0,0,0.2);
+    }
+    .events-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        padding: 20px 0;
+    }
+    .event-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    .event-card:hover {
+        transform: translateY(-2px);
+        background: rgba(255,255,255,0.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .event-title {
+        margin: 0 0 12px;
+        color: var(--accent);
+        font-size: 1.25rem;
+    }
+    .event-meta {
+        font-size: 0.9rem;
+        color: #aaa;
+        line-height: 1.5;
+    }
+    .no-events {
+        color: #888;
+        text-align: center;
+        padding: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Dashboard</h1>
+    <p>Welcome. Click + to create a new event.</p>
+  
+    <div class="events-list">
+      {% if user_events %}
+        {% for event in user_events %}
+        <div class="event-card">
+            <h3 class="event-title">{{ event.title }}</h3>
+            <div class="event-meta">
+                Created: {{ event.created_at|date:"M d, Y" }}
+                <br>
+                Owner: {{ event.owner.username }}
+                <br>
+                Participants: {{ event.eventparticipant_set.count | add:"1" }}
+            </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="no-events">
+            No events yet. Click the + button to create one.
+        </div>
+      {% endif %}
+    </div>
+    <button id="open-create-event" class="plus-button" aria-label="Create event">+</button>
+
+    <div id="create-event-modal" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div id="create-event-content" class="modal-content">
+        <div style="padding:20px;text-align:center;color:#666;">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const openBtn = document.getElementById('open-create-event');
+      const modal = document.getElementById('create-event-modal');
+      const content = document.getElementById('create-event-content');
+
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+      }
+
+      function openModal() {
+        fetch('/event/create/', {
+          credentials: 'same-origin',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(response => {
+          if (!response.ok) throw new Error('Network response was not ok');
+          return response.text();
+        })
+        .then(html => {
+          content.innerHTML = html;
+          modal.classList.add('show');
+          modal.setAttribute('aria-hidden', 'false');
+
+          const form = content.querySelector('#create-event-form');
+          if (form) {
+            form.addEventListener('submit', handleSubmit);
+          }
+
+          const cancel = content.querySelector('#create-event-cancel');
+          if (cancel) {
+            cancel.addEventListener('click', closeModal);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          content.innerHTML = '<div style="padding:20px;color:#dc3545;">Failed to load form. Please try again.</div>';
+        });
+      }
+
+      function handleSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const csrftoken = getCookie('csrftoken');
+
+        fetch(form.action, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: formData
+        })
+        .then(response => {
+          if (response.redirected) {
+            window.location.href = response.url;
+            return;
+          }
+          if (!response.ok) throw new Error('Network response was not ok');
+          return response.text();
+        })
+        .then(result => {
+          closeModal();
+          window.location.reload();
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          content.innerHTML = '<div style="padding:20px;color:#dc3545;">Failed to create event. Please try again.</div>';
+        });
+      }
+
+      function closeModal() {
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        content.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">Loading…</div>';
+      }
+
+      // Event Listeners
+      openBtn.addEventListener('click', openModal);
+
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeModal();
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('show')) {
+          closeModal();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
