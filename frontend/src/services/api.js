@@ -26,6 +26,20 @@ const getCsrfTokenFromCookie = () => {
   return null;
 };
 
+
+
+export async function createEvent(data) {
+  try {
+    await ensureCsrfToken();
+    const response = await api.post("/api/events/create/", data);
+    return response.data;
+  } catch (error) {
+    console.error("Error creating event:", error);
+    throw error;
+  }
+}
+
+
 export const fetchCsrfToken = async () => {
   try {
     const response = await api.get('/csrf-token/');
@@ -63,7 +77,7 @@ api.interceptors.request.use(
   async (config) => {
     if (['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
       const token = await ensureCsrfToken();
-      if (token) config.headers['X-CSRFToken'] = token;
+      if (token) config.headers['X-CSRFToken'] = token;  // 👈 Виправлено на X-CSRFToken
     }
     return config;
   },

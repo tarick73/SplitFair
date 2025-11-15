@@ -16,7 +16,7 @@ class Event(models.Model):
 
 
 class EventParticipant(models.Model):
-    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='participants')  # 👈 Додано related_name
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     role = models.CharField(max_length=50, default='member')
 

@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { createEvent } from "../services/api";
+
 import {
   Container,
   Card,
@@ -36,38 +38,25 @@ const Dashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // ➕ Create Event
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const csrftoken = getCookie("csrftoken");
+ 
+// ➕ Create Event - ОНОВЛЕНИЙ МЕТОД
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (!formData.title.trim()) return;
 
-    if (!formData.title.trim()) return;
-
-    setCreating(true);
-    try {
-      const res = await fetch("/api/events/create/", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": csrftoken,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!res.ok) throw new Error("Failed to create event");
-
-      const newEvent = await res.json();
-      setEvents((prev) => [...prev, newEvent]);
-      setFormData({ title: "" });
-      setShowModal(false);
-    } catch (err) {
-      alert("⚠️ Error creating event: " + err.message);
-    } finally {
-      setCreating(false);
-    }
-  };
-
+  setCreating(true);
+  try {
+    const newEvent = await createEvent(formData);
+    setEvents((prev) => [...prev, newEvent]);
+    setFormData({ title: "" });
+    setShowModal(false);
+  } catch (err) {
+    alert("⚠️ Error creating event: " + err.message);
+  } finally {
+    setCreating(false);
+  }
+};
   // 🧠 Helpers
   const filteredEvents = events.filter((e) =>
     e.title.toLowerCase().includes(searchQuery.toLowerCase())
