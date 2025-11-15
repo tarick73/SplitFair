@@ -40,3 +40,20 @@
 .read-the-docs {
   color: #888;
 }
+
+.create-event-form { color:#333; padding:8px; }
+.form-title { margin:0 0 12px; color:#007bff; font-size:20px; }
+.form-field { margin-bottom:10px; }
+.form-field label { display:block; margin-bottom:6px; font-weight:600; }
+.form-field input, .form-field textarea {
+  width:100%; padding:8px; border:1px solid #ddd;
+  border-radius:6px; box-sizing:border-box;
+}
+.help-text { color:#666; font-size:12px; margin-top:4px; }
+.button-group { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+.btn { padding:8px 14px; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+.btn-primary { background:#007bff; color:#fff; }
+.btn-primary:hover { background:#0056b3; }
+.btn-secondary { background:#6c757d; color:#fff; }
+.btn-secondary:hover { background:#545b62; }
+

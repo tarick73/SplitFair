@@ -8,4 +8,6 @@ urlpatterns = [
 
     # все наши страницы (главная, регистрация, логин, логаут)
     path("", include("accounts.urls")),
+
+     path("api/events/", include("events.api_urls")),
 ]
