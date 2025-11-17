@@ -119,6 +119,8 @@
         .errors div {
             margin-bottom:4px;
         }
+        .settle-result { margin-top:12px; }
+        .settle-result pre { white-space:pre-wrap; word-break:break-word; color:#222; }
     </style>
 </head>
 <body>
@@ -138,6 +140,15 @@
             {% endfor %}
         </div>
     {% endif %}
+    
+    {% if request.user.id == event.owner_id %}
+        <div style="margin-bottom:16px;">
+            <button id="settle-btn">Settle debts</button>
+            <span id="settle-status" style="margin-left:8px;color:#ddd"></span>
+        </div>
+    {% endif %}
+
+    <div id="settle-result" class="card settle-result" style="display:none;"></div>
 
     <!-- Participants and their expenses -->
     <div class="card">
@@ -221,5 +232,63 @@
         </form>
     </div>
 </div>
+<script>
+(function(){
+    function getCookie(name){
+        const v = `; ${document.cookie}`;
+        const parts = v.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    const btn = document.getElementById('settle-btn');
+    const status = document.getElementById('settle-status');
+    const resultBox = document.getElementById('settle-result');
+    if (!btn) return;
+
+    btn.addEventListener('click', function(){
+        if (!confirm('Create settlement transactions for this event?')) return;
+
+        btn.disabled = true;
+        status.textContent = 'Processing…';
+        resultBox.style.display = 'none';
+        resultBox.innerHTML = '';
+
+        const csrftoken = getCookie('csrftoken');
+
+        fetch("{% url 'event_settle' event.id %}", {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Accept': 'application/json'
+            }
+        }).then(response => {
+            if (response.status === 403) throw new Error('Forbidden: only owner can settle.');
+            if (!response.ok) return response.text().then(t => { throw new Error(t || 'Network error'); });
+            return response.json();
+        }).then(data => {
+            status.textContent = 'Done';
+            if (data.created && data.created.length) {
+                let html = '<h2>Settlements created</h2><ul>';
+                data.created.forEach(s => {
+                    html += `<li>${s.payer} → ${s.to}: ${s.amount}</li>`;
+                });
+                html += '</ul>';
+                resultBox.innerHTML = html;
+            } else {
+                resultBox.innerHTML = '<div>No settlement transactions were necessary.</div>';
+            }
+            resultBox.style.display = 'block';
+        }).catch(err => {
+            status.textContent = 'Failed';
+            resultBox.style.display = 'block';
+            resultBox.innerHTML = '<div style="color:#ffdddd">Error: ' + (err.message || err) + '</div>';
+            console.error(err);
+        }).finally(() => {
+            btn.disabled = false;
+        });
+    });
+})();
+</script>
 </body>
 </html>

@@ -9,6 +9,9 @@ import json
 from accounts.forms import EventForm
 from events.models import Event, EventParticipant, Transaction
 from django.contrib.auth.models import User
+from django.views.decorators.http import require_POST
+
+from .utils import settle_event
 
 
 # Старий view для HTML форми
@@ -183,3 +186,21 @@ def event_detail_view(request, event_id):
             "transactions": transactions_qs,
         },
     )
+
+@require_POST
+@login_required
+def settle_event_api(request, event_id):
+    """
+    Trigger settle_event for the given event and return JSON with created settlements.
+    Only event owner is allowed to trigger.
+    """
+    event = get_object_or_404(Event, pk=event_id)
+    if event.owner_id != request.user.id:
+        return JsonResponse({"error": "Only event owner can perform settlement."}, status=403)
+
+    try:
+        created = settle_event(event_id)
+    except Exception as exc:
+        return JsonResponse({"error": str(exc)}, status=500)
+
+    return JsonResponse({"created": created, "count": len(created)})

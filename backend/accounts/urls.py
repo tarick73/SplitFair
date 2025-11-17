@@ -1,7 +1,7 @@
 from django.urls import path
 from django.contrib.auth.views import LoginView, LogoutView
 from .views import index_view, register_view, csrf_token_view, api_login, dashboard_view
-from events.views import create_event_view, event_detail_view
+from events.views import create_event_view, event_detail_view, settle_event_api
 
 urlpatterns = [
     # головна сторінка
@@ -31,4 +31,5 @@ urlpatterns = [
     path("dashboard/", dashboard_view, name="dashboard"),
     path("event/create/", create_event_view, name="create_event"),
     path("event/<int:event_id>/", event_detail_view, name="event_detail"),
+    path("event/<int:event_id>/settle/", settle_event_api, name="settle_event_api"),
 ]
