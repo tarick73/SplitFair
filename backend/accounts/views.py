@@ -9,6 +9,7 @@ from .forms import RegisterForm
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
 from events.models import Event
+from django.db.models import Count
 
 
 def index_view(request):
@@ -55,7 +56,15 @@ def csrf_token_view(request):
 @login_required
 @ensure_csrf_cookie
 def dashboard_view(request):
-    user_events = Event.objects.filter(owner=request.user).order_by('-created_at')
+    user_events = (
+        Event.objects
+        .filter(owner=request.user)
+        .annotate(
+            # считаем количество участников из EventParticipant
+            participants_count=Count('participants', distinct=True)
+        )
+        .order_by('-created_at')
+    )
     return render(request, "dashboard.html", {
         "user_events": user_events
     })

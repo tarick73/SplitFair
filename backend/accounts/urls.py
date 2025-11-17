@@ -1,7 +1,7 @@
 from django.urls import path
 from django.contrib.auth.views import LoginView, LogoutView
 from .views import index_view, register_view, csrf_token_view, api_login, dashboard_view
-from events.views import create_event_view
+from events.views import create_event_view, event_detail_view
 
 urlpatterns = [
     # головна сторінка
@@ -27,4 +27,8 @@ urlpatterns = [
     path("csrf-token/", csrf_token_view, name="csrf_token"),
     path("dashboard/", dashboard_view, name="dashboard"),
     path("event/create/", create_event_view, name="create_event"),
+
+    path("dashboard/", dashboard_view, name="dashboard"),
+    path("event/create/", create_event_view, name="create_event"),
+    path("event/<int:event_id>/", event_detail_view, name="event_detail"),
 ]
