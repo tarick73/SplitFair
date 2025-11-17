@@ -26,20 +26,6 @@ const getCsrfTokenFromCookie = () => {
   return null;
 };
 
-
-
-export async function createEvent(data) {
-  try {
-    await ensureCsrfToken();
-    const response = await api.post("/api/events/create/", data);
-    return response.data;
-  } catch (error) {
-    console.error("Error creating event:", error);
-    throw error;
-  }
-}
-
-
 export const fetchCsrfToken = async () => {
   try {
     const response = await api.get('/csrf-token/');
@@ -72,12 +58,37 @@ const ensureCsrfToken = async () => {
   return csrfToken;
 };
 
+// === API Functions ===
+
+// Отримати список подій
+export async function fetchEvents() {
+  try {
+    const response = await api.get("/api/events/");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    throw error;
+  }
+}
+
+// Створити нову подію
+export async function createEvent(data) {
+  try {
+    await ensureCsrfToken();
+    const response = await api.post("/api/events/create/", data);
+    return response.data;
+  } catch (error) {
+    console.error("Error creating event:", error);
+    throw error;
+  }
+}
+
 // === Axios interceptors ===
 api.interceptors.request.use(
   async (config) => {
     if (['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
       const token = await ensureCsrfToken();
-      if (token) config.headers['X-CSRFToken'] = token;  // 👈 Виправлено на X-CSRFToken
+      if (token) config.headers['X-CSRFToken'] = token;
     }
     return config;
   },

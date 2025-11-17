@@ -1,6 +1,7 @@
 from django.urls import path
-from . import views  # 👈 ВАЖЛИВО!
+from . import views
 
 urlpatterns = [
-    path('create/', views.create_event_api, name='create_event_api'),  # буде api/events/create/
+    path('', views.list_events_api, name='list_events_api'),           # GET /api/events/
+    path('create/', views.create_event_api, name='create_event_api'), # POST /api/events/create/
 ]

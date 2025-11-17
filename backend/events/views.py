@@ -35,7 +35,29 @@ def create_event_view(request):
     return render(request, "create_event_form.html", {"form": form})
 
 
-# НОВИЙ API endpoint для React
+# API endpoint для отримання списку подій
+@login_required
+def list_events_api(request):
+    """API endpoint для отримання списку подій користувача"""
+    if request.method == "GET":
+        events = Event.objects.filter(owner=request.user).order_by('-created_at')
+        
+        events_data = []
+        for event in events:
+            events_data.append({
+                'id': event.id,
+                'title': event.title,
+                'owner': event.owner.username,
+                'participants_count': event.participants.count(),
+                'created_at': event.created_at.isoformat()
+            })
+        
+        return JsonResponse(events_data, safe=False)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+# API endpoint для створення події
 @login_required
 def create_event_api(request):
     if request.method == "POST":
