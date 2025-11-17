@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { createEvent } from "../services/api";
+import { createEvent, fetchEvents } from "../services/api";  // 👈 Додано fetchEvents
 
 import {
   Container,
@@ -19,44 +19,42 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({ title: "" });
 
-  // 🍪 CSRF
-  const getCookie = (name) => {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(";").shift();
-  };
-
-  // 🔁 Fetch Events
+  // 🔁 Fetch Events - ОНОВЛЕНИЙ
   useEffect(() => {
-    fetch("/api/events/", { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch events");
-        return res.json();
-      })
-      .then((data) => setEvents(data))
-      .catch((err) => console.error("❌ Error fetching events:", err))
-      .finally(() => setLoading(false));
+    const loadEvents = async () => {
+      try {
+        const data = await fetchEvents();  // 👈 Використовуємо функцію з api.js
+        setEvents(data);
+      } catch (err) {
+        console.error("❌ Error fetching events:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEvents();
   }, []);
 
  
-// ➕ Create Event - ОНОВЛЕНИЙ МЕТОД
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  if (!formData.title.trim()) return;
+  // ➕ Create Event
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.title.trim()) return;
 
-  setCreating(true);
-  try {
-    const newEvent = await createEvent(formData);
-    setEvents((prev) => [...prev, newEvent]);
-    setFormData({ title: "" });
-    setShowModal(false);
-  } catch (err) {
-    alert("⚠️ Error creating event: " + err.message);
-  } finally {
-    setCreating(false);
-  }
-};
+    setCreating(true);
+    try {
+      const newEvent = await createEvent(formData);
+      setEvents((prev) => [newEvent, ...prev]);  // 👈 Додаємо на початок списку
+      setFormData({ title: "" });
+      setShowModal(false);
+    } catch (err) {
+      alert("⚠️ Error creating event: " + err.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   // 🧠 Helpers
   const filteredEvents = events.filter((e) =>
     e.title.toLowerCase().includes(searchQuery.toLowerCase())
