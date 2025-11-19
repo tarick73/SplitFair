@@ -14,3 +14,10 @@ body {
 #root {
   min-height: 100vh;
 }
+
+.white-placeholder::placeholder {
+  color: #ffffff; /* робимо placeholder білим */
+  opacity: 1; /* щоб колір точно відображався */
+}
+
+

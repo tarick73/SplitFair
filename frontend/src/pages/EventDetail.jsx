@@ -21,18 +21,20 @@ import {
 const EventDetail = () => {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  
+
   const [event, setEvent] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [errors, setErrors] = useState([]);
   const [settling, setSettling] = useState(false);
   const [settleResult, setSettleResult] = useState(null);
-  
+
   // Form states
   const [newParticipant, setNewParticipant] = useState("");
   const [addingParticipant, setAddingParticipant] = useState(false);
+
   const [newTransaction, setNewTransaction] = useState({
     payer_id: "",
     amount: "",
@@ -40,7 +42,7 @@ const EventDetail = () => {
   });
   const [addingTransaction, setAddingTransaction] = useState(false);
 
-  // Fetch event details
+  // Load event data
   useEffect(() => {
     fetchEventData();
   }, [eventId]);
@@ -62,18 +64,14 @@ const EventDetail = () => {
   // Add participant
   const handleAddParticipant = async (e) => {
     e.preventDefault();
-    
     if (!newParticipant.trim()) return;
-    
+
     setAddingParticipant(true);
+
     try {
-      await addParticipant(eventId, { 
-        participant_name: newParticipant 
-      });
-      
+      await addParticipant(eventId, { participant_name: newParticipant });
       await fetchEventData();
       setNewParticipant("");
-      setErrors([]);
     } catch (err) {
       setErrors([err.message || "Failed to add participant"]);
     } finally {
@@ -84,16 +82,14 @@ const EventDetail = () => {
   // Add transaction
   const handleAddTransaction = async (e) => {
     e.preventDefault();
-    
     if (!newTransaction.payer_id || !newTransaction.amount) return;
-    
+
     setAddingTransaction(true);
+
     try {
       await addTransaction(eventId, newTransaction);
-      
       await fetchEventData();
       setNewTransaction({ payer_id: "", amount: "", description: "" });
-      setErrors([]);
     } catch (err) {
       setErrors([err.message || "Failed to add transaction"]);
     } finally {
@@ -103,17 +99,14 @@ const EventDetail = () => {
 
   // Settle debts
   const handleSettle = async () => {
-    if (!window.confirm("Create settlement transactions for this event?")) {
-      return;
-    }
-    
+    if (!window.confirm("Create settlement transactions for this event?")) return;
+
     setSettling(true);
     setSettleResult(null);
-    
+
     try {
       const data = await settleDebts(eventId);
       setSettleResult(data);
-      
       await fetchEventData();
     } catch (err) {
       setErrors([err.message || "Failed to settle debts"]);
@@ -122,6 +115,7 @@ const EventDetail = () => {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <div style={{ backgroundColor: "#1a1d24", minHeight: "100vh" }}>
@@ -132,6 +126,7 @@ const EventDetail = () => {
     );
   }
 
+  // Event not found
   if (!event) {
     return (
       <div style={{ backgroundColor: "#1a1d24", minHeight: "100vh" }}>
@@ -148,23 +143,23 @@ const EventDetail = () => {
   return (
     <div style={{ backgroundColor: "#1a1d24", minHeight: "100vh", paddingBottom: "40px" }}>
       <Container style={{ paddingTop: "24px", maxWidth: "900px" }}>
-        
-        {/* Back Link */}
+
+        {/* Back link */}
         <Button
           variant="link"
           onClick={() => navigate("/dashboard")}
-          style={{ 
-            color: "#3b82f6", 
-            padding: 0, 
+          style={{
+            color: "#3b82f6",
+            padding: 0,
             marginBottom: "16px",
             textDecoration: "none",
-            fontSize: "14px"
+            fontSize: "14px",
           }}
         >
           ← Back to events list
         </Button>
 
-        {/* Event Header */}
+        {/* Event header */}
         <h1 className="text-light mb-2" style={{ fontSize: "32px", fontWeight: "600" }}>
           {event.title}
         </h1>
@@ -175,14 +170,19 @@ const EventDetail = () => {
 
         {/* Errors */}
         {errors.length > 0 && (
-          <Alert variant="danger" onClose={() => setErrors([])} dismissible className="mb-3">
+          <Alert
+            variant="danger"
+            onClose={() => setErrors([])}
+            dismissible
+            className="mb-3"
+          >
             {errors.map((err, i) => (
               <div key={i}>{err}</div>
             ))}
           </Alert>
         )}
 
-        {/* Settle Button */}
+        {/* Settle button */}
         {event.is_owner && (
           <div className="mb-4">
             <Button
@@ -194,7 +194,7 @@ const EventDetail = () => {
                 padding: "12px 28px",
                 fontSize: "15px",
                 fontWeight: "600",
-                borderRadius: "10px"
+                borderRadius: "10px",
               }}
             >
               {settling ? (
@@ -209,14 +209,18 @@ const EventDetail = () => {
           </div>
         )}
 
-        {/* Settle Result */}
+        {/* Settle result */}
         {settleResult && (
-          <Card className="mb-4" style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}>
+          <Card
+            className="mb-4"
+            style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}
+          >
             <Card.Body>
               <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>
                 Settlements created
               </h5>
-              {settleResult.created && settleResult.created.length > 0 ? (
+
+              {settleResult.created?.length ? (
                 <ul className="text-light" style={{ marginBottom: 0, paddingLeft: "20px" }}>
                   {settleResult.created.map((s, i) => (
                     <li key={i} style={{ marginBottom: "8px" }}>
@@ -231,85 +235,120 @@ const EventDetail = () => {
           </Card>
         )}
 
-        {/* Participants Card */}
-        <Card className="mb-4" style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}>
-          <Card.Body style={{ padding: "24px" }}>
-            <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>
-              Participants and their expenses
-            </h5>
+        {/* Participants */}
+<Card
+  className="mb-4"
+  style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}
+>
+  <Card.Body style={{ padding: "24px" }}>
+    <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>
+      Participants and their expenses
+    </h5>
 
-            {participants.length > 0 ? (
-              <div style={{ 
-                backgroundColor: "#1a1d24", 
-                borderRadius: "8px", 
-                overflow: "hidden",
-                marginBottom: "20px"
-              }}>
-                <Table className="mb-0" style={{ color: "#d1d5db" }}>
-                  <thead style={{ backgroundColor: "#2d3139" }}>
-                    <tr>
-                      <th style={{ padding: "12px 16px", borderBottom: "none", fontWeight: "600" }}>
-                        Participant
-                      </th>
-                      <th style={{ padding: "12px 16px", borderBottom: "none", fontWeight: "600", textAlign: "right" }}>
-                        Total paid
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {participants.map((p, index) => (
-                      <tr key={p.id} style={{ borderTop: index > 0 ? "1px solid #2d3139" : "none" }}>
-                        <td style={{ padding: "12px 16px", borderBottom: "none" }}>
-                          {p.username}
-                        </td>
-                        <td style={{ padding: "12px 16px", borderBottom: "none", textAlign: "right", fontWeight: "600" }}>
-                          ${p.total_spent.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
-            ) : (
-              <p style={{ color: "#9ca3af", marginBottom: "20px" }}>No participants yet</p>
-            )}
-
-            {/* Add Participant Form */}
+    {/* Table */}
+    {participants.length ? (
+      <div
+        style={{
+          borderRadius: "8px",
+          overflow: "hidden",
+          marginBottom: "20px",
+          border: "1px solid #2d3139", // Межа навколо таблиці
+        }}
+      >
+        {/*
+          Використовуємо className="table-dark" (Bootstrap 5) або просто
+          інлайн-стилі, щоб забезпечити темний фон.
+        */}
+        <Table
+          className="mb-0 table-dark" // <<< ЗАМІНА ТУТ: Додано клас table-dark
+          style={{
+            color: "#fff",
+            backgroundColor: "#2d3139", // Встановлюємо фон явно
+          }}
+        >
+          {/*
+            Оскільки ми використовуємо table-dark, Bootstrap вже робить <thead> темним,
+            але ми можемо задати його фон явно для більшої надійності:
+          */}
+          <thead style={{ backgroundColor: "#363a43", borderBottom: "none" }}>
+            <tr>
+              <th style={{ padding: "12px 16px", border: "none" }}>Participant</th>
+              <th
+                style={{
+                  padding: "12px 16px",
+                  border: "none",
+                  textAlign: "right",
+                }}
+              >
+                Total paid
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {participants.map((p, i) => (
+              <tr
+                key={p.id}
+                // Встановлюємо темну межу між рядками
+                style={{ borderTop: i ? "1px solid #363a43" : "none" }}
+              >
+                <td style={{ padding: "12px 16px" }}>{p.username}</td>
+                <td
+                  style={{
+                    padding: "12px 16px",
+                    textAlign: "right",
+                    fontWeight: "600",
+                    color: "#10b981", // зелений для сум
+                  }}
+                >
+                  ${p.total_spent.toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+    ) : (
+      <p style={{ color: "#9ca3af", marginBottom: "20px" }}>No participants yet</p>
+    )}
+            {/* Add participant */}
             <Row className="g-2">
               <Col xs={12} md={8}>
-                <Form.Control
-                  type="text"
-                  placeholder="Name of new participant"
-                  value={newParticipant}
-                  onChange={(e) => setNewParticipant(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddParticipant(e);
-                    }
-                  }}
-                  style={{
-                    backgroundColor: "#1a1d24",
-                    border: "1px solid #2d3139",
-                    color: "#fff",
-                    padding: "10px 14px",
-                    borderRadius: "8px"
-                  }}
-                />
+               <Form.Control
+  type="text"
+  placeholder="Name of new participant"
+  value={newParticipant}
+  onChange={(e) => setNewParticipant(e.target.value)}
+  onKeyPress={(e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddParticipant(e);
+    }
+  }}
+  style={{
+    backgroundColor: "#1a1d24",
+    border: "1px solid #2d3139",
+    color: "#fff",
+    padding: "10px 14px",
+    borderRadius: "8px",
+  }}
+  className="white-placeholder"
+/>
               </Col>
+
               <Col xs={12} md={4}>
-                <Button 
+                <Button
                   onClick={handleAddParticipant}
                   disabled={addingParticipant || !newParticipant.trim()}
                   className="w-100"
                   style={{
-                    background: addingParticipant || !newParticipant.trim() 
-                      ? "#6b7280" 
-                      : "linear-gradient(135deg, #3b82f6, #10b981)",
+                    background:
+                      addingParticipant || !newParticipant.trim()
+                        ? "#6b7280"
+                        : "linear-gradient(135deg, #3b82f6, #10b981)",
                     border: "none",
                     padding: "10px 14px",
                     borderRadius: "8px",
-                    fontWeight: "600"
+                    fontWeight: "600",
                   }}
                 >
                   {addingParticipant ? (
@@ -326,52 +365,59 @@ const EventDetail = () => {
           </Card.Body>
         </Card>
 
-        {/* Expenses Card */}
+        {/* Expenses */}
         <Card style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}>
           <Card.Body style={{ padding: "24px" }}>
             <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>
               Expenses
             </h5>
 
-            {transactions.length > 0 ? (
-              <div style={{ 
-                backgroundColor: "#1a1d24", 
-                borderRadius: "8px", 
-                padding: "12px 16px",
-                marginBottom: "20px"
-              }}>
+            {/* List */}
+            {transactions.length ? (
+              <div
+                style={{
+                  backgroundColor: "#1a1d24",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  marginBottom: "20px",
+                }}
+              >
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                  {transactions.map((txn, index) => (
-                    <li
-                      key={txn.id}
-                      style={{
-                        padding: "10px 0",
-                        borderBottom: index < transactions.length - 1 ? "1px solid rgba(255,255,255,0.08)" : "none",
-                        color: "#d1d5db",
-                        fontSize: "14px",
-                      }}
-                    >
-                      <div style={{ marginBottom: "4px" }}>
-                        <strong style={{ color: "#fff" }}>{txn.payer}</strong>
-                        {" — "}
-                        <span style={{ fontWeight: "600", color: "#10b981" }}>
-                          ${parseFloat(txn.amount).toFixed(2)}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: "13px", color: "#9ca3af" }}>
-                        {txn.description || "No description"}
-                        {" • "}
-                        {new Date(txn.date).toLocaleDateString()}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+  {transactions.map((txn, i) => (
+    <li
+      key={txn.id}
+      style={{
+        padding: "12px 0",
+        borderBottom:
+          i < transactions.length - 1
+            ? "1px solid rgba(255,255,255,0.08)"
+            : "none",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        {/* 1. Payer (Ім'я тепер зліва) */}
+        <span style={{ color: "#fff" }}>{txn.payer}</span>
+        {/* 2. Amount (Сума тепер справа) */}
+        <span style={{ fontWeight: "600", color: "#10b981" }}>
+          ${Number(txn.amount).toFixed(2)}
+        </span>
+      </div>
+
+      {/* Description (optional) */}
+      {txn.description && (
+        <div style={{ marginTop: "4px", color: "#9ca3af", fontSize: "14px" }}>
+           {txn.description}
+        </div>
+      )}
+    </li>
+  ))}
+</ul>
               </div>
             ) : (
               <p style={{ color: "#9ca3af", marginBottom: "20px" }}>No expenses yet</p>
             )}
 
-            {/* Add Transaction Form */}
+            {/* Add transaction form */}
             <Row className="g-2 mb-2">
               <Col xs={12} md={4}>
                 <Form.Select
@@ -384,7 +430,7 @@ const EventDetail = () => {
                     border: "1px solid #2d3139",
                     color: newTransaction.payer_id ? "#fff" : "#9ca3af",
                     padding: "10px 14px",
-                    borderRadius: "8px"
+                    borderRadius: "8px",
                   }}
                 >
                   <option value="">Who paid</option>
@@ -395,6 +441,7 @@ const EventDetail = () => {
                   ))}
                 </Form.Select>
               </Col>
+
               <Col xs={12} md={4}>
                 <Form.Control
                   type="number"
@@ -409,10 +456,12 @@ const EventDetail = () => {
                     border: "1px solid #2d3139",
                     color: "#fff",
                     padding: "10px 14px",
-                    borderRadius: "8px"
+                    borderRadius: "8px",
                   }}
+                  className="white-placeholder"
                 />
               </Col>
+
               <Col xs={12} md={4}>
                 <Form.Control
                   type="text"
@@ -426,37 +475,37 @@ const EventDetail = () => {
                     border: "1px solid #2d3139",
                     color: "#fff",
                     padding: "10px 14px",
-                    borderRadius: "8px"
+                    borderRadius: "8px",
                   }}
+                  className="white-placeholder"
                 />
               </Col>
             </Row>
-            <Row>
-              <Col>
-                <Button 
-                  onClick={handleAddTransaction}
-                  disabled={addingTransaction || !newTransaction.payer_id || !newTransaction.amount}
-                  style={{
-                    background: addingTransaction || !newTransaction.payer_id || !newTransaction.amount
-                      ? "#6b7280"
-                      : "linear-gradient(135deg, #3b82f6, #10b981)",
-                    border: "none",
-                    padding: "10px 24px",
-                    borderRadius: "8px",
-                    fontWeight: "600"
-                  }}
-                >
-                  {addingTransaction ? (
-                    <>
-                      <Spinner animation="border" size="sm" className="me-2" />
-                      Adding...
-                    </>
-                  ) : (
-                    "Add expense"
-                  )}
-                </Button>
-              </Col>
-            </Row>
+
+            {/* Submit */}
+            <Button
+              onClick={handleAddTransaction}
+              disabled={addingTransaction || !newTransaction.payer_id || !newTransaction.amount}
+              style={{
+                background:
+                  addingTransaction || !newTransaction.payer_id || !newTransaction.amount
+                    ? "#6b7280"
+                    : "linear-gradient(135deg, #3b82f6, #10b981)",
+                border: "none",
+                padding: "10px 24px",
+                borderRadius: "8px",
+                fontWeight: "600",
+              }}
+            >
+              {addingTransaction ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Adding...
+                </>
+              ) : (
+                "Add expense"
+              )}
+            </Button>
           </Card.Body>
         </Card>
       </Container>
