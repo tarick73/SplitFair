@@ -1,63 +1,64 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";  // 👈 Додай імпорт
-import { createEvent, fetchEvents } from "../services/api";
-
+import { useNavigate } from "react-router-dom";
+import { fetchEvents, authService } from "../services/api"; 
+import CreateEventForm from "../components/CreateEventForm";
 import {
   Container,
   Card,
   Button,
-  Modal,
-  Form,
   Spinner,
   InputGroup,
+  Form,
 } from "react-bootstrap";
 
 const Dashboard = () => {
-  const navigate = useNavigate();  // 👈 Додай хук
+  const navigate = useNavigate();
+  
+  // === СТАН КОМПОНЕНТА ===
   const [events, setEvents] = useState([]);
-  const [showModal, setShowModal] = useState(false);
+  // Залишаємо лише стан, що керує видимістю модального вікна
+  const [showModal, setShowModal] = useState(false); 
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [formData, setFormData] = useState({ title: "" });
 
-  // 🔁 Fetch Events
+  // === ЕФЕКТИ (ЗАВАНТАЖЕННЯ ДАНИХ ТА ІНІЦІАЛІЗАЦІЯ) ===
   useEffect(() => {
-    const loadEvents = async () => {
+    const loadData = async () => {
       try {
+        await authService.init(); 
         const data = await fetchEvents();
         setEvents(data);
       } catch (err) {
-        console.error("❌ Error fetching events:", err);
+        console.error("❌ Error loading data:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    loadEvents();
+    loadData();
   }, []);
 
- 
-  // ➕ Create Event
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.title.trim()) return;
+  // === ОБРОБНИКИ ДІЙ ===
 
-    setCreating(true);
+  // 🚪 Logout Handler
+  const handleLogout = async () => {
     try {
-      const newEvent = await createEvent(formData);
-      setEvents((prev) => [newEvent, ...prev]);
-      setFormData({ title: "" });
-      setShowModal(false);
-    } catch (err) {
-      alert("⚠️ Error creating event: " + err.message);
-    } finally {
-      setCreating(false);
+      await authService.logout(); 
+      navigate('/');
+    } catch (error) {
+      console.error("❌ Logout failed:", error);
+      localStorage.removeItem('user'); 
+      navigate('/'); 
+      alert("Logout failed, please try again.");
     }
   };
+  
+  // ✅ Новий обробник: Додає створену подію до списку
+  const handleNewEvent = (newEvent) => {
+      setEvents((prev) => [newEvent, ...prev]);
+  };
 
-  // 🧠 Helpers
+  // === ХЕЛПЕРИ ДЛЯ РЕНДЕРИНГУ ===
   const filteredEvents = events.filter((e) =>
     e.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -65,6 +66,7 @@ const Dashboard = () => {
   const getInitial = (text) => text?.charAt(0)?.toUpperCase() || "E";
   const colors = ["#3b82f6", "#10b981", "#8b5cf6", "#ec4899", "#f59e0b"];
 
+  // === РЕНДЕРИНГ ===
   return (
     <div style={{ backgroundColor: "#1a1d24", minHeight: "100vh" }}>
       {/* Header */}
@@ -76,7 +78,20 @@ const Dashboard = () => {
         }}
       >
         <Container>
-          <h1 className="text-light fw-semibold mb-0">Events</h1>
+          <div className="d-flex justify-content-between align-items-center">
+            <h1 className="text-light fw-semibold mb-0">Events</h1>
+            <Button
+              variant="outline-secondary"
+              onClick={handleLogout} 
+              style={{
+                color: "#9ca3af",
+                borderColor: "#374151",
+                fontWeight: "500",
+              }}
+            >
+              Logout
+            </Button>
+          </div>
         </Container>
       </header>
 
@@ -92,6 +107,7 @@ const Dashboard = () => {
           }}
         >
           <InputGroup>
+            {/* ... (логіка пошуку залишається незмінною) ... */}
             <InputGroup.Text
               style={{
                 backgroundColor: "transparent",
@@ -118,6 +134,7 @@ const Dashboard = () => {
         </div>
 
         {/* Event List */}
+        {/* ... (логіка відображення подій залишається незмінною) ... */}
         {loading ? (
           <div className="text-center py-5">
             <Spinner animation="border" style={{ color: "#6366f1" }} />
@@ -133,7 +150,7 @@ const Dashboard = () => {
             {filteredEvents.map((event, i) => (
               <Card
                 key={event.id}
-                onClick={() => navigate(`/events/${event.id}`)}  // 👈 Додай onClick
+                onClick={() => navigate(`/events/${event.id}`)}
                 style={{
                   backgroundColor: "#24282f",
                   border: "none",
@@ -213,73 +230,12 @@ const Dashboard = () => {
         +
       </Button>
 
-      {/* Create Event Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <div style={{ backgroundColor: "#24282f", borderRadius: "12px" }}>
-          <Modal.Header
-            closeButton
-            closeVariant="white"
-            style={{
-              backgroundColor: "#24282f",
-              borderBottom: "1px solid #2d3139",
-            }}
-          >
-            <Modal.Title className="text-light">Create New Event</Modal.Title>
-          </Modal.Header>
-          <Form onSubmit={handleSubmit}>
-            <Modal.Body>
-              <Form.Group>
-                <Form.Label className="text-light">Event Title</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter event title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ title: e.target.value })}
-                  required
-                  style={{
-                    backgroundColor: "#1a1d24",
-                    border: "1px solid #2d3139",
-                    color: "#fff",
-                    padding: "12px",
-                  }}
-                />
-              </Form.Group>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button
-                variant="secondary"
-                onClick={() => setShowModal(false)}
-                disabled={creating}
-                style={{
-                  backgroundColor: "#374151",
-                  border: "none",
-                  padding: "10px 24px",
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={creating}
-                style={{
-                  background: "linear-gradient(135deg, #3b82f6, #10b981)",
-                  border: "none",
-                  padding: "10px 24px",
-                }}
-              >
-                {creating ? (
-                  <>
-                    <Spinner animation="border" size="sm" className="me-2" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create"
-                )}
-              </Button>
-            </Modal.Footer>
-          </Form>
-        </div>
-      </Modal>
+      {/* 💡 ВИКЛИК ОКРЕМОГО КОМПОНЕНТА ФОРМИ */}
+      <CreateEventForm 
+        show={showModal} 
+        handleClose={() => setShowModal(false)} 
+        onEventCreated={handleNewEvent} 
+      />
     </div>
   );
 };
