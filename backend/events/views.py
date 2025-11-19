@@ -99,6 +99,163 @@ def create_event_api(request):
     
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
+
+# 👇 НОВИЙ: API endpoint для отримання деталей події
+@login_required
+def event_detail_api(request, event_id):
+    """API endpoint для отримання деталей події"""
+    try:
+        event = Event.objects.get(id=event_id)
+        
+        # Перевіряємо чи користувач має доступ до події
+        is_participant = EventParticipant.objects.filter(
+            event=event,
+            user=request.user
+        ).exists()
+        
+        if event.owner != request.user and not is_participant:
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        # Отримуємо учасників з їх витратами
+        participants_data = []
+        totals_qs = Transaction.objects.filter(event=event).values("payer_id").annotate(total_spent=Sum("amount"))
+        totals_by_user_id = {row["payer_id"]: row["total_spent"] for row in totals_qs}
+        
+        for participant in event.participants.all():
+            participants_data.append({
+                'id': participant.user.id,
+                'username': participant.user.username,
+                'total_spent': float(totals_by_user_id.get(participant.user.id, Decimal("0")))
+            })
+        
+        # Отримуємо транзакції
+        transactions_data = []
+        for txn in Transaction.objects.filter(event=event).order_by('-date'):
+            transactions_data.append({
+                'id': txn.id,
+                'payer': txn.payer.username if txn.payer else 'Unknown',
+                'amount': float(txn.amount),
+                'description': txn.description,
+                'date': txn.date.isoformat()
+            })
+        
+        return JsonResponse({
+            'event': {
+                'id': event.id,
+                'title': event.title,
+                'owner': event.owner.username,
+                'is_owner': event.owner == request.user,
+                'created_at': event.created_at.isoformat()
+            },
+            'participants': participants_data,
+            'transactions': transactions_data
+        })
+        
+    except Event.DoesNotExist:
+        return JsonResponse({'error': 'Event not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+# 👇 НОВИЙ: API endpoint для додавання учасника
+@login_required
+def add_participant_api(request, event_id):
+    """API endpoint для додавання учасника до події"""
+    if request.method != "POST":
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        event = Event.objects.get(id=event_id)
+        
+        # Тільки власник може додавати учасників
+        if event.owner != request.user:
+            return JsonResponse({'error': 'Only owner can add participants'}, status=403)
+        
+        data = json.loads(request.body)
+        participant_name = data.get('participant_name', '').strip()
+        
+        if not participant_name:
+            return JsonResponse({'error': 'Participant name is required'}, status=400)
+        
+        # Створюємо або отримуємо користувача
+        user, _ = User.objects.get_or_create(username=participant_name)
+        
+        # Додаємо як учасника (якщо ще не доданий)
+        participant, created = EventParticipant.objects.get_or_create(
+            event=event,
+            user=user,
+            defaults={'role': 'member'}
+        )
+        
+        if not created:
+            return JsonResponse({'error': 'Participant already exists'}, status=400)
+        
+        return JsonResponse({
+            'id': user.id,
+            'username': user.username,
+            'total_spent': 0
+        }, status=201)
+        
+    except Event.DoesNotExist:
+        return JsonResponse({'error': 'Event not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+# 👇 НОВИЙ: API endpoint для додавання транзакції
+@login_required
+def add_transaction_api(request, event_id):
+    """API endpoint для додавання витрати"""
+    if request.method != "POST":
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        event = Event.objects.get(id=event_id)
+        
+        # Перевіряємо доступ
+        is_participant = EventParticipant.objects.filter(
+            event=event,
+            user=request.user
+        ).exists()
+        
+        if event.owner != request.user and not is_participant:
+            return JsonResponse({'error': 'Access denied'}, status=403)
+        
+        data = json.loads(request.body)
+        payer_id = data.get('payer_id')
+        amount = data.get('amount')
+        description = data.get('description', '')
+        
+        if not payer_id or not amount:
+            return JsonResponse({'error': 'Payer and amount are required'}, status=400)
+        
+        payer = User.objects.get(id=payer_id)
+        
+        # Створюємо транзакцію
+        transaction = Transaction.objects.create(
+            event=event,
+            payer=payer,
+            amount=Decimal(str(amount)),
+            description=description
+        )
+        
+        return JsonResponse({
+            'id': transaction.id,
+            'payer': payer.username,
+            'amount': float(transaction.amount),
+            'description': transaction.description,
+            'date': transaction.date.isoformat()
+        }, status=201)
+        
+    except Event.DoesNotExist:
+        return JsonResponse({'error': 'Event not found'}, status=404)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'Payer not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+# HTML view (старий)
 @login_required
 def event_detail_view(request, event_id):
     """
@@ -208,6 +365,7 @@ def event_detail_view(request, event_id):
             "transactions": transactions_qs,
         },
     )
+
 
 @require_POST
 @login_required

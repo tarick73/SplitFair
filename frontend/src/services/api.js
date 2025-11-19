@@ -83,6 +83,55 @@ export async function createEvent(data) {
   }
 }
 
+// 👇 НОВІ ФУНКЦІЇ ДЛЯ EVENT DETAIL
+
+// Отримати деталі події
+export async function fetchEventDetail(eventId) {
+  try {
+    const response = await api.get(`/api/events/${eventId}/`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching event detail:", error);
+    throw error;
+  }
+}
+
+// Додати учасника
+export async function addParticipant(eventId, data) {
+  try {
+    await ensureCsrfToken();
+    const response = await api.post(`/api/events/${eventId}/participants/`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error adding participant:", error);
+    throw error;
+  }
+}
+
+// Додати витрату (транзакцію)
+export async function addTransaction(eventId, data) {
+  try {
+    await ensureCsrfToken();
+    const response = await api.post(`/api/events/${eventId}/transactions/`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error adding transaction:", error);
+    throw error;
+  }
+}
+
+// Розрахувати борги (settle)
+export async function settleDebts(eventId) {
+  try {
+    await ensureCsrfToken();
+    const response = await api.post(`/api/events/${eventId}/settle/`);
+    return response.data;
+  } catch (error) {
+    console.error("Error settling debts:", error);
+    throw error;
+  }
+}
+
 // === Axios interceptors ===
 api.interceptors.request.use(
   async (config) => {

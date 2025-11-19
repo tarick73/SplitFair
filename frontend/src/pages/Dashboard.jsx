@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { createEvent, fetchEvents } from "../services/api";  // 👈 Додано fetchEvents
+import { useNavigate } from "react-router-dom";  // 👈 Додай імпорт
+import { createEvent, fetchEvents } from "../services/api";
 
 import {
   Container,
@@ -12,6 +13,7 @@ import {
 } from "react-bootstrap";
 
 const Dashboard = () => {
+  const navigate = useNavigate();  // 👈 Додай хук
   const [events, setEvents] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -19,11 +21,11 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({ title: "" });
 
-  // 🔁 Fetch Events - ОНОВЛЕНИЙ
+  // 🔁 Fetch Events
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const data = await fetchEvents();  // 👈 Використовуємо функцію з api.js
+        const data = await fetchEvents();
         setEvents(data);
       } catch (err) {
         console.error("❌ Error fetching events:", err);
@@ -45,7 +47,7 @@ const Dashboard = () => {
     setCreating(true);
     try {
       const newEvent = await createEvent(formData);
-      setEvents((prev) => [newEvent, ...prev]);  // 👈 Додаємо на початок списку
+      setEvents((prev) => [newEvent, ...prev]);
       setFormData({ title: "" });
       setShowModal(false);
     } catch (err) {
@@ -131,6 +133,7 @@ const Dashboard = () => {
             {filteredEvents.map((event, i) => (
               <Card
                 key={event.id}
+                onClick={() => navigate(`/events/${event.id}`)}  // 👈 Додай onClick
                 style={{
                   backgroundColor: "#24282f",
                   border: "none",
