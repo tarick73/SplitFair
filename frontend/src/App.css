@@ -1,0 +1,62 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+
+.create-event-form { color:#333; padding:8px; }
+.form-title { margin:0 0 12px; color:#007bff; font-size:20px; }
+.form-field { margin-bottom:10px; }
+.form-field label { display:block; margin-bottom:6px; font-weight:600; }
+.form-field input, .form-field textarea {
+  width:100%; padding:8px; border:1px solid #ddd;
+  border-radius:6px; box-sizing:border-box;
+}
+.help-text { color:#666; font-size:12px; margin-top:4px; }
+.button-group { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+.btn { padding:8px 14px; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+.btn-primary { background:#007bff; color:#fff; }
+.btn-primary:hover { background:#0056b3; }
+.btn-secondary { background:#6c757d; color:#fff; }
+.btn-secondary:hover { background:#545b62; }
+
+
+

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 500px;
+            margin: 40px auto;
+            line-height: 1.5;
+        }
+        button, a {
+            font-size: 15px;
+            padding: 8px 12px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 8px;
+        }
+        form {
+            display: inline-block;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<h1>SplitFair</h1>
+
+{% if user.is_authenticated %}
+<p>Logged in as <b>{{ user.username }}</b></p>
+
+<!-- Логаут через POST -->
+<form method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit">Log out</button>
+</form>
+
+{% else %}
+<p>You are not logged in.</p>
+
+<a href="{% url 'login' %}">Log in</a><br>
+<a href="{% url 'register' %}">Sign up</a>
+{% endif %}
+
+</body>
+</html>
