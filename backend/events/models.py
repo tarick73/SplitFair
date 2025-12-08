@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+import secrets
 
 User = get_user_model()
 
@@ -12,9 +13,26 @@ class Event(models.Model):
     title = models.CharField(max_length=200)
     owner = models.ForeignKey(User, related_name='owned_events', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    join_code = models.CharField(
+        max_length=12,
+        unique=True,
+        editable=False,
+        db_index=True,
+        null=True,   # 👈 добавили
+        blank=True,  # 👈 добавили (чтобы форма не требовала)
+    )
+
+
+    def save(self, *args, **kwargs):
+        # генерируем код только один раз
+        if not self.join_code:
+            # Получится что-то вроде "A1B2C3D4"
+            self.join_code = secrets.token_hex(4).upper()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title
+
 
 
 class EventParticipant(models.Model):

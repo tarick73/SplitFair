@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
 from events.models import Event
 from django.db.models import Count
+from django.db.models import Count, Q
 
 
 def index_view(request):
@@ -58,11 +59,13 @@ def csrf_token_view(request):
 def dashboard_view(request):
     user_events = (
         Event.objects
-        .filter(owner=request.user)
+        .filter(
+            Q(owner=request.user) | Q(participants__user=request.user)
+        )
         .annotate(
-            # считаем количество участников из EventParticipant
             participants_count=Count('participants', distinct=True)
         )
+        .distinct()
         .order_by('-created_at')
     )
     return render(request, "dashboard.html", {

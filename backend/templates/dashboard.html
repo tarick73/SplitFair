@@ -75,8 +75,22 @@
   <div class="container">
     <h1>Dashboard</h1>
     <p>Welcome. Click + to create a new event.</p>
-  
-    <div class="events-list">
+      <div class="card" style="margin-bottom:16px;">
+          <h2>Join existing event</h2>
+
+          <form method="post" action="{% url 'join_event_api' %}">
+              {% csrf_token %}
+              <input type="text"
+                     name="code"
+                     placeholder="Enter event code"
+                     required>
+              <button type="submit">Join</button>
+          </form>
+      </div>
+
+
+
+      <div class="events-list">
       {% if user_events %}
           {% for event in user_events %}
               <a href="{% url 'event_detail' event.id %}" class="event-card-link">

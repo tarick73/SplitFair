@@ -130,7 +130,8 @@
     <h1>{{ event.title }}</h1>
     <div class="event-meta">
         Created: {{ event.created_at|date:"M d, Y" }}<br>
-        Owner: {{ event.owner.username }}
+        Owner: {{ event.owner.username }}<br>
+        Event code: <code>{{ event.join_code }}</code>
     </div>
 
     {% if errors %}
@@ -174,15 +175,6 @@
         {% else %}
             <p class="muted">No participants yet</p>
         {% endif %}
-
-        <form method="post" style="margin-top:12px;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="add_participant">
-            <div class="form-row">
-                <input type="text" name="participant_name" placeholder="Name of new participant" required>
-                <button type="submit">Add participant</button>
-            </div>
-        </form>
     </div>
 
     <!-- Expenses -->
@@ -232,6 +224,7 @@
         </form>
     </div>
 </div>
+
 <script>
 (function(){
     function getCookie(name){
