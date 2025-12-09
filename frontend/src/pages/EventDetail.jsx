@@ -28,12 +28,14 @@ const EventDetail = () => {
   const [settling, setSettling] = useState(false);
   const [settleResult, setSettleResult] = useState(null);
 
-  // Form states
+  const user = JSON.parse(localStorage.getItem("user"));
+
   const [newTransaction, setNewTransaction] = useState({
-    payer_id: "",
+    payer_id: user?.id || "",
     amount: "",
     description: "",
   });
+
   const [addingTransaction, setAddingTransaction] = useState(false);
 
   useEffect(() => {
@@ -67,12 +69,22 @@ const EventDetail = () => {
 
   const handleAddTransaction = async (e) => {
     e.preventDefault();
-    if (!newTransaction.payer_id || !newTransaction.amount) return;
+
+    if (!newTransaction.amount) return;
+
+    // Non-owner → always use own ID
+    if (!event.is_owner) {
+      newTransaction.payer_id = user.id;
+    }
 
     setAddingTransaction(true);
     try {
       await addTransaction(eventId, newTransaction);
-      setNewTransaction({ payer_id: "", amount: "", description: "" });
+      setNewTransaction({
+        payer_id: event.is_owner ? "" : user.id,
+        amount: "",
+        description: "",
+      });
       await fetchEventData();
     } catch (err) {
       setErrors([err.message || "Failed to add transaction"]);
@@ -125,10 +137,17 @@ const EventDetail = () => {
   return (
     <div style={{ backgroundColor: "#1a1d24", minHeight: "100vh", paddingBottom: "40px" }}>
       <Container style={{ paddingTop: "24px", maxWidth: "900px" }}>
+        
         <Button
           variant="link"
           onClick={() => navigate("/dashboard")}
-          style={{ color: "#3b82f6", padding: 0, marginBottom: "16px", textDecoration: "none", fontSize: "14px" }}
+          style={{
+            color: "#3b82f6",
+            padding: 0,
+            marginBottom: "16px",
+            textDecoration: "none",
+            fontSize: "14px",
+          }}
         >
           ← Back to events list
         </Button>
@@ -145,7 +164,9 @@ const EventDetail = () => {
 
         {errors.length > 0 && (
           <Card className="mb-3 p-3" style={{ backgroundColor: "#24282f", border: "none" }}>
-            {errors.map((err, i) => <div key={i} style={{ color: "#ff4d4d" }}>{err}</div>)}
+            {errors.map((err, i) => (
+              <div key={i} style={{ color: "#ff4d4d" }}>{err}</div>
+            ))}
           </Card>
         )}
 
@@ -175,43 +196,35 @@ const EventDetail = () => {
           </div>
         )}
 
-        {settleResult && (
-          <Card className="mb-4" style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}>
-            <Card.Body>
-              <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>Settlements created</h5>
-              {settleResult.created?.length ? (
-                <ul className="text-light" style={{ marginBottom: 0, paddingLeft: "20px" }}>
-                  {settleResult.created.map((s, i) => (
-                    <li key={i} style={{ marginBottom: "8px" }}>
-                      <strong>{s.payer}</strong> → <strong>{s.to}</strong>: ${s.amount}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-light mb-0">No settlement transactions were necessary.</p>
-              )}
-            </Card.Body>
-          </Card>
-        )}
-
         {/* Participants */}
         <Card className="mb-4" style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}>
           <Card.Body style={{ padding: "24px" }}>
-            <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>Participants and their expenses</h5>
+            <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>
+              Participants and their expenses
+            </h5>
 
             {participants.length ? (
               <Table className="mb-0 table-dark" style={{ color: "#fff", backgroundColor: "#2d3139" }}>
                 <thead style={{ backgroundColor: "#363a43", borderBottom: "none" }}>
                   <tr>
                     <th style={{ padding: "12px 16px", border: "none" }}>Participant</th>
-                    <th style={{ padding: "12px 16px", border: "none", textAlign: "right" }}>Total paid</th>
+                    <th style={{ padding: "12px 16px", border: "none", textAlign: "right" }}>
+                      Total paid
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {participants.map((p, i) => (
                     <tr key={p.id} style={{ borderTop: i ? "1px solid #363a43" : "none" }}>
                       <td style={{ padding: "12px 16px" }}>{p.username}</td>
-                      <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: "600", color: "#10b981" }}>
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          textAlign: "right",
+                          fontWeight: "600",
+                          color: "#10b981",
+                        }}
+                      >
                         ${p.total_spent.toFixed(2)}
                       </td>
                     </tr>
@@ -227,18 +240,50 @@ const EventDetail = () => {
         {/* Transactions */}
         <Card style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}>
           <Card.Body style={{ padding: "24px" }}>
-            <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>Expenses</h5>
+            <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>
+              Expenses
+            </h5>
 
             {transactions.length ? (
-              <div style={{ backgroundColor: "#1a1d24", borderRadius: "8px", padding: "12px 16px", marginBottom: "20px" }}>
+              <div
+                style={{
+                  backgroundColor: "#1a1d24",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  marginBottom: "20px",
+                }}
+              >
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {transactions.map((txn) => (
-                    <li key={txn.id} style={{ padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                    <li
+                      key={txn.id}
+                      style={{
+                        padding: "12px 0",
+                        borderBottom: "1px solid rgba(255,255,255,0.08)",
+                      }}
+                    >
                       <div style={{ display: "flex", justifyContent: "space-between" }}>
                         <span style={{ color: "#fff" }}>{txn.payer}</span>
-                        <span style={{ fontWeight: "600", color: "#10b981" }}>${Number(txn.amount).toFixed(2)}</span>
+                        <span
+                          style={{
+                            fontWeight: "600",
+                            color: "#10b981",
+                          }}
+                        >
+                          ${Number(txn.amount).toFixed(2)}
+                        </span>
                       </div>
-                      {txn.description && <div style={{ marginTop: "4px", color: "#9ca3af", fontSize: "14px" }}>{txn.description}</div>}
+                      {txn.description && (
+                        <div
+                          style={{
+                            marginTop: "4px",
+                            color: "#9ca3af",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {txn.description}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -249,34 +294,84 @@ const EventDetail = () => {
 
             {/* Add transaction */}
             <Form className="d-flex gap-2">
-              <Form.Select
-                value={newTransaction.payer_id}
-                onChange={(e) => setNewTransaction({ ...newTransaction, payer_id: e.target.value })}
-                style={{ backgroundColor: "#1a1d24", border: "1px solid #2d3139", color: newTransaction.payer_id ? "#fff" : "#9ca3af", borderRadius: "8px" }}
-              >
-                <option value="">Who paid</option>
-                {participants.map((p) => (
-                  <option key={p.id} value={p.id}>{p.username}</option>
-                ))}
-              </Form.Select>
+              {/* Owner → full control */}
+              {event.is_owner ? (
+                <Form.Select
+                  value={newTransaction.payer_id}
+                  onChange={(e) =>
+                    setNewTransaction({
+                      ...newTransaction,
+                      payer_id: e.target.value,
+                    })
+                  }
+                  style={{
+                    backgroundColor: "#1a1d24",
+                    border: "1px solid #2d3139",
+                    color: newTransaction.payer_id ? "#fff" : "#9ca3af",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <option value="">Who paid</option>
+                  {participants.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.username}
+                    </option>
+                  ))}
+                </Form.Select>
+              ) : (
+                // Non-owner: force own username
+                <Form.Control
+                  disabled
+                  value={user.username}
+                  style={{
+                    backgroundColor: "#1a1d24",
+                    border: "1px solid #2d3139",
+                    color: "#9ca3af",
+                    borderRadius: "8px",
+                  }}
+                />
+              )}
+
               <Form.Control
                 type="number"
                 step="0.01"
                 placeholder="Amount"
                 value={newTransaction.amount}
-                onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
-                style={{ backgroundColor: "#1a1d24", border: "1px solid #2d3139", color: "#fff", borderRadius: "8px" }}
+                onChange={(e) =>
+                  setNewTransaction({
+                    ...newTransaction,
+                    amount: e.target.value,
+                  })
+                }
+                style={{
+                  backgroundColor: "#1a1d24",
+                  border: "1px solid #2d3139",
+                  color: "#fff",
+                  borderRadius: "8px",
+                }}
               />
+
               <Form.Control
                 type="text"
                 placeholder="Description (optional)"
                 value={newTransaction.description}
-                onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
-                style={{ backgroundColor: "#1a1d24", border: "1px solid #2d3139", color: "#fff", borderRadius: "8px" }}
+                onChange={(e) =>
+                  setNewTransaction({
+                    ...newTransaction,
+                    description: e.target.value,
+                  })
+                }
+                style={{
+                  backgroundColor: "#1a1d24",
+                  border: "1px solid #2d3139",
+                  color: "#fff",
+                  borderRadius: "8px",
+                }}
               />
+
               <Button
                 onClick={handleAddTransaction}
-                disabled={addingTransaction || !newTransaction.payer_id || !newTransaction.amount}
+                disabled={addingTransaction || !newTransaction.amount}
                 style={{
                   background: "linear-gradient(135deg, #3b82f6, #10b981)",
                   border: "none",
