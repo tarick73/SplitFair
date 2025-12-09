@@ -156,6 +156,7 @@ def event_detail_api(request, event_id):
                     "title": event.title,
                     "owner": event.owner.username,
                     "is_owner": event.owner == request.user,
+                    "join_code": event.join_code,
                     "created_at": event.created_at.isoformat(),
                 },
                 "participants": participants_data,

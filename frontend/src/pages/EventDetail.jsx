@@ -2,21 +2,17 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   fetchEventDetail,
-  addParticipant,
   addTransaction,
   settleDebts,
   fetchAllUsers,
-} from "../services/api"; // make sure fetchAllUsers exists
+} from "../services/api"; 
 import {
   Container,
   Card,
   Button,
   Form,
   Table,
-  Alert,
   Spinner,
-  Row,
-  Col,
 } from "react-bootstrap";
 
 const EventDetail = () => {
@@ -24,33 +20,15 @@ const EventDetail = () => {
   const navigate = useNavigate();
 
   const [event, setEvent] = useState(null);
-  const [participants, setParticipants] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [participants, setParticipants] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
-useEffect(() => {
-  const loadUsers = async () => {
-    try {
-      const users = await fetchAllUsers();  // function from api.js
-      setAllUsers(users);
-    } catch (err) {
-      console.error("Failed to fetch users:", err);
-    }
-  };
-  loadUsers();
-}, []);
-
-
-
   const [loading, setLoading] = useState(true);
-
   const [errors, setErrors] = useState([]);
   const [settling, setSettling] = useState(false);
   const [settleResult, setSettleResult] = useState(null);
 
   // Form states
-  const [newParticipant, setNewParticipant] = useState("");
-  const [addingParticipant, setAddingParticipant] = useState(false);
-
   const [newTransaction, setNewTransaction] = useState({
     payer_id: "",
     amount: "",
@@ -84,22 +62,6 @@ useEffect(() => {
       setAllUsers(data);
     } catch (err) {
       console.error("Failed to fetch all users:", err);
-    }
-  };
-
-  const handleAddParticipant = async (e) => {
-    e.preventDefault();
-    if (!newParticipant) return;
-
-    setAddingParticipant(true);
-    try {
-      await addParticipant(eventId, { user_id: newParticipant });
-      setNewParticipant("");
-      await fetchEventData();
-    } catch (err) {
-      setErrors([err.message || "Failed to add participant"]);
-    } finally {
-      setAddingParticipant(false);
     }
   };
 
@@ -149,10 +111,12 @@ useEffect(() => {
     return (
       <div style={{ backgroundColor: "#1a1d24", minHeight: "100vh" }}>
         <Container className="py-5">
-          <Alert variant="danger">Event not found</Alert>
-          <Button variant="primary" onClick={() => navigate("/dashboard")}>
-            Back to Dashboard
-          </Button>
+          <Card className="p-4 text-center">
+            <p>Event not found</p>
+            <Button variant="primary" onClick={() => navigate("/dashboard")}>
+              Back to Dashboard
+            </Button>
+          </Card>
         </Container>
       </div>
     );
@@ -169,16 +133,20 @@ useEffect(() => {
           ← Back to events list
         </Button>
 
-        <h1 className="text-light mb-2" style={{ fontSize: "32px", fontWeight: "600" }}>{event.title}</h1>
+        <h1 className="text-light mb-2" style={{ fontSize: "32px", fontWeight: "600" }}>
+          {event.title}
+        </h1>
+
         <div style={{ color: "#9ca3af", fontSize: "14px", marginBottom: "24px" }}>
           <div>Created: {new Date(event.created_at).toLocaleDateString()}</div>
           <div>Owner: {event.owner}</div>
+          <div>Event code: <strong>{event.join_code}</strong></div>
         </div>
 
         {errors.length > 0 && (
-          <Alert variant="danger" onClose={() => setErrors([])} dismissible className="mb-3">
-            {errors.map((err, i) => <div key={i}>{err}</div>)}
-          </Alert>
+          <Card className="mb-3 p-3" style={{ backgroundColor: "#24282f", border: "none" }}>
+            {errors.map((err, i) => <div key={i} style={{ color: "#ff4d4d" }}>{err}</div>)}
+          </Card>
         )}
 
         {event.is_owner && (
@@ -253,45 +221,6 @@ useEffect(() => {
             ) : (
               <p style={{ color: "#9ca3af", marginBottom: "20px" }}>No participants yet</p>
             )}
-
-            {/* Add participant */}
-            <Row className="g-2 mt-3">
-              <Col xs={12} md={8}>
-                <Form.Select
-  value={newParticipant}
-  onChange={(e) => setNewParticipant(e.target.value)}
->
-  <option value="">Select user</option>
-  {allUsers.map(user => (
-    <option key={user.id} value={user.id}>{user.username}</option>
-  ))}
-</Form.Select>
-
-              </Col>
-              <Col xs={12} md={4}>
-                <Button
-                  onClick={handleAddParticipant}
-                  disabled={addingParticipant || !newParticipant}
-                  className="w-100"
-                  style={{
-                    background: addingParticipant || !newParticipant ? "#6b7280" : "linear-gradient(135deg, #3b82f6, #10b981)",
-                    border: "none",
-                    padding: "10px 14px",
-                    borderRadius: "8px",
-                    fontWeight: "600",
-                  }}
-                >
-                  {addingParticipant ? (
-                    <>
-                      <Spinner animation="border" size="sm" className="me-2" />
-                      Adding...
-                    </>
-                  ) : (
-                    "Add participant"
-                  )}
-                </Button>
-              </Col>
-            </Row>
           </Card.Body>
         </Card>
 
@@ -319,62 +248,45 @@ useEffect(() => {
             )}
 
             {/* Add transaction */}
-            <Row className="g-2 mb-2">
-              <Col xs={12} md={4}>
-                <Form.Select
-                  value={newTransaction.payer_id}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, payer_id: e.target.value })}
-                  style={{ backgroundColor: "#1a1d24", border: "1px solid #2d3139", color: newTransaction.payer_id ? "#fff" : "#9ca3af", padding: "10px 14px", borderRadius: "8px" }}
-                >
-                  <option value="">Who paid</option>
-                  {participants.map((p) => (
-                    <option key={p.id} value={p.id}>{p.username}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-
-              <Col xs={12} md={4}>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  placeholder="Amount"
-                  value={newTransaction.amount}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
-                  style={{ backgroundColor: "#1a1d24", border: "1px solid #2d3139", color: "#fff", padding: "10px 14px", borderRadius: "8px" }}
-                />
-              </Col>
-
-              <Col xs={12} md={4}>
-                <Form.Control
-                  type="text"
-                  placeholder="Description (optional)"
-                  value={newTransaction.description}
-                  onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
-                  style={{ backgroundColor: "#1a1d24", border: "1px solid #2d3139", color: "#fff", padding: "10px 14px", borderRadius: "8px" }}
-                />
-              </Col>
-            </Row>
-
-            <Button
-              onClick={handleAddTransaction}
-              disabled={addingTransaction || !newTransaction.payer_id || !newTransaction.amount}
-              style={{
-                background: addingTransaction || !newTransaction.payer_id || !newTransaction.amount ? "#6b7280" : "linear-gradient(135deg, #3b82f6, #10b981)",
-                border: "none",
-                padding: "10px 24px",
-                borderRadius: "8px",
-                fontWeight: "600",
-              }}
-            >
-              {addingTransaction ? (
-                <>
-                  <Spinner animation="border" size="sm" className="me-2" />
-                  Adding...
-                </>
-              ) : (
-                "Add expense"
-              )}
-            </Button>
+            <Form className="d-flex gap-2">
+              <Form.Select
+                value={newTransaction.payer_id}
+                onChange={(e) => setNewTransaction({ ...newTransaction, payer_id: e.target.value })}
+                style={{ backgroundColor: "#1a1d24", border: "1px solid #2d3139", color: newTransaction.payer_id ? "#fff" : "#9ca3af", borderRadius: "8px" }}
+              >
+                <option value="">Who paid</option>
+                {participants.map((p) => (
+                  <option key={p.id} value={p.id}>{p.username}</option>
+                ))}
+              </Form.Select>
+              <Form.Control
+                type="number"
+                step="0.01"
+                placeholder="Amount"
+                value={newTransaction.amount}
+                onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
+                style={{ backgroundColor: "#1a1d24", border: "1px solid #2d3139", color: "#fff", borderRadius: "8px" }}
+              />
+              <Form.Control
+                type="text"
+                placeholder="Description (optional)"
+                value={newTransaction.description}
+                onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
+                style={{ backgroundColor: "#1a1d24", border: "1px solid #2d3139", color: "#fff", borderRadius: "8px" }}
+              />
+              <Button
+                onClick={handleAddTransaction}
+                disabled={addingTransaction || !newTransaction.payer_id || !newTransaction.amount}
+                style={{
+                  background: "linear-gradient(135deg, #3b82f6, #10b981)",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontWeight: "600",
+                }}
+              >
+                {addingTransaction ? "Adding..." : "Add expense"}
+              </Button>
+            </Form>
           </Card.Body>
         </Card>
       </Container>
