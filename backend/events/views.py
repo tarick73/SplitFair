@@ -254,18 +254,28 @@ def add_transaction_api(request, event_id):
             except User.DoesNotExist:
                 return JsonResponse({'error': 'Payer not found'}, status=404)
         else:
-            # НЕ владелец — только сам за себя
+            # Non-owner must be a participant
             if not is_participant:
                 return JsonResponse({'error': 'You are not a participant'}, status=403)
 
             payer_id = data.get('payer_id')
-            # если фронт пытается указать кого-то другого — запрещаем
-            if payer_id is not None and str(payer_id) != str(request.user.id):
+            if not payer_id:
+                return JsonResponse({'error': 'Payer is required'}, status=400)
+
+            try:
+                payer = User.objects.get(id=payer_id)
+            except User.DoesNotExist:
+                return JsonResponse({'error': 'Payer not found'}, status=404)
+
+            # Payer must also be a participant
+            if payer != event.owner and not EventParticipant.objects.filter(
+                    event=event,
+                    user=payer
+            ).exists():
                 return JsonResponse(
-                    {'error': 'You can only add expenses for yourself'},
-                    status=403
+                    {'error': 'Payer must be a participant of this event'},
+                    status=400
                 )
-            payer = request.user
 
         # Плательщик обязан быть участником ивента (или владельцем)
         if payer != event.owner and not EventParticipant.objects.filter(
