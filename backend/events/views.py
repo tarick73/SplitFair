@@ -1,5 +1,7 @@
 from decimal import Decimal, InvalidOperation
 import json
+from events.models import Transaction, TransactionSplit
+
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
@@ -118,12 +120,18 @@ def event_detail_api(request, event_id):
 
         # Учасники з їх витратами
         participants_data = []
+
         totals_qs = (
-            Transaction.objects.filter(event=event)
-            .values("payer_id")
-            .annotate(total_spent=Sum("amount"))
+            TransactionSplit.objects
+            .filter(transaction__event=event)
+            .values("user_id")
+            .annotate(total_spent=Sum("share_amount"))
         )
-        totals_by_user_id = {row["payer_id"]: row["total_spent"] for row in totals_qs}
+
+        totals_by_user_id = {
+            row["user_id"]: row["total_spent"]
+            for row in totals_qs
+        }
 
         for participant in event.participants.all():
             participants_data.append(
@@ -223,14 +231,12 @@ def add_participant_api(request, event_id):
 # API endpoint для додавання транзакції
 @login_required
 def add_transaction_api(request, event_id):
-    """API endpoint для додавання витрати"""
     if request.method != "POST":
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
     try:
         event = Event.objects.get(id=event_id)
 
-        # Проверяем доступ к ивенту
         is_participant = EventParticipant.objects.filter(
             event=event,
             user=request.user
@@ -240,71 +246,63 @@ def add_transaction_api(request, event_id):
             return JsonResponse({'error': 'Access denied'}, status=403)
 
         data = json.loads(request.body)
+
         amount = data.get('amount')
         description = data.get('description', '')
+        payer_id = data.get('payer_id')
+        used_by_ids = data.get('used_by', [])
 
-        # ----------- ЛОГИКА ПЛАТЕЛЬЩИКА -----------
-        if event.owner == request.user:
-            # владелец может выбирать любого участника
-            payer_id = data.get('payer_id')
-            if not payer_id:
-                return JsonResponse({'error': 'Payer is required'}, status=400)
-            try:
-                payer = User.objects.get(id=payer_id)
-            except User.DoesNotExist:
-                return JsonResponse({'error': 'Payer not found'}, status=404)
-        else:
-            # Non-owner must be a participant
-            if not is_participant:
-                return JsonResponse({'error': 'You are not a participant'}, status=403)
-
-            payer_id = data.get('payer_id')
-            if not payer_id:
-                return JsonResponse({'error': 'Payer is required'}, status=400)
-
-            try:
-                payer = User.objects.get(id=payer_id)
-            except User.DoesNotExist:
-                return JsonResponse({'error': 'Payer not found'}, status=404)
-
-            # Payer must also be a participant
-            if payer != event.owner and not EventParticipant.objects.filter(
-                    event=event,
-                    user=payer
-            ).exists():
-                return JsonResponse(
-                    {'error': 'Payer must be a participant of this event'},
-                    status=400
-                )
-
-        # Плательщик обязан быть участником ивента (или владельцем)
-        if payer != event.owner and not EventParticipant.objects.filter(
-                event=event,
-                user=payer
-        ).exists():
+        if not used_by_ids:
             return JsonResponse(
-                {'error': 'Payer must be a participant of this event'},
+                {'error': 'Select at least one consumer'},
                 status=400
             )
 
-        # ----------- ПРОВЕРКА СУММЫ -----------
-        if amount is None:
-            return JsonResponse({'error': 'Amount is required'}, status=400)
-
         try:
-            amount_dec = Decimal(str(amount))
-            if amount_dec <= 0:
-                return JsonResponse({'error': 'Amount must be > 0'}, status=400)
-        except (InvalidOperation, ValueError):
+            amount = Decimal(str(amount))
+            if amount <= 0:
+                raise ValueError
+        except:
             return JsonResponse({'error': 'Invalid amount'}, status=400)
 
-        # Создаём транзакцию
+        payer = get_object_or_404(User, id=payer_id)
+
+        # payer must be owner or participant
+        if payer != event.owner and not EventParticipant.objects.filter(
+            event=event,
+            user=payer
+        ).exists():
+            return JsonResponse(
+                {'error': 'Payer must be event participant'},
+                status=400
+            )
+
+        # CREATE TRANSACTION
         transaction = Transaction.objects.create(
             event=event,
             payer=payer,
-            amount=amount_dec,
-            description=description,
+            amount=amount,
+            description=description
         )
+
+        # CREATE SPLITS
+        split_amount = (amount / len(used_by_ids)).quantize(Decimal("0.01"))
+
+        for user_id in used_by_ids:
+            user = get_object_or_404(User, id=user_id)
+
+            # user must be participant
+            if user != event.owner and not EventParticipant.objects.filter(
+                event=event,
+                user=user
+            ).exists():
+                continue
+
+            TransactionSplit.objects.create(
+                transaction=transaction,
+                user=user,
+                share_amount=split_amount
+            )
 
         return JsonResponse({
             'id': transaction.id,
@@ -316,8 +314,6 @@ def add_transaction_api(request, event_id):
 
     except Event.DoesNotExist:
         return JsonResponse({'error': 'Event not found'}, status=404)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
 
 
 @login_required
@@ -351,8 +347,17 @@ def event_detail_view(request, event_id):
     )
 
     # Считаем, сколько каждый участник всего потратил
-    totals_qs = transactions_qs.values("payer_id").annotate(total_spent=Sum("amount"))
-    totals_by_user_id = {row["payer_id"]: row["total_spent"] for row in totals_qs}
+    totals_qs = (
+        TransactionSplit.objects
+        .filter(transaction__event=event)
+        .values("user_id")
+        .annotate(total_spent=Sum("share_amount"))
+    )
+
+    totals_by_user_id = {
+        row["user_id"]: row["total_spent"]
+        for row in totals_qs
+    }
 
     participants_data = [
         {

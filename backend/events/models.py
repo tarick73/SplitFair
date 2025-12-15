@@ -47,32 +47,36 @@ class EventParticipant(models.Model):
     def __str__(self):
         return f'{self.user} @ {self.event}'
 
+# events/models.py
 
 class Transaction(models.Model):
-    """
-    Represents a single expense made by a Payer within an Event.
-    """
-    event = models.ForeignKey(Event, on_delete=models.CASCADE)
-    # The person who paid the full amount of the transaction
-    payer = models.ForeignKey(User, related_name='paid_transactions', on_delete=models.SET_NULL, null=True)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="transactions")
+    payer = models.ForeignKey(
+        User,
+        related_name='paid_transactions',
+        on_delete=models.SET_NULL,
+        null=True
+    )
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-
     description = models.TextField(blank=True)
     date = models.DateField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.description} - {self.amount} paid by {self.payer.username}"
 
-
 class TransactionSplit(models.Model):
-    """
-    Represents the portion of a Transaction owed by a specific User.
-    This is critical for the final split calculation.
-    """
-    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, related_name='transaction_shares', on_delete=models.CASCADE)
-
+    transaction = models.ForeignKey(
+        Transaction,
+        on_delete=models.CASCADE,
+        related_name="splits"
+    )
+    user = models.ForeignKey(
+        User,
+        related_name='transaction_shares',
+        on_delete=models.CASCADE
+    )
     share_amount = models.DecimalField(max_digits=12, decimal_places=2)
+
 
     class Meta:
 
