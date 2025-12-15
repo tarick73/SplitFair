@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   fetchEventDetail,
   addTransaction,
   settleDebts,
-  fetchAllUsers, // Although fetched, not currently used in a meaningful way here
-} from "../services/api";
+  fetchAllUsers,
+} from "../services/api"; 
 import {
   Container,
   Card,
@@ -14,43 +14,58 @@ import {
   Table,
   Spinner,
 } from "react-bootstrap";
-import "./EventDetail.css"; // Assuming you might use a CSS file for styling
-
-// Initial state for a new transaction
-const initialNewTransactionState = (userId, isOwner) => ({
-  payer_id: isOwner ? "" : userId, // Only owner can choose payer, non-owner defaults to self
-  amount: "",
-  description: "",
-});
 
 const EventDetail = () => {
   const { eventId } = useParams();
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem("user"));
-  const currentUserId = user?.id;
 
   const [event, setEvent] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [participants, setParticipants] = useState([]);
-  // const [allUsers, setAllUsers] = useState([]); // Removed, as it wasn't effectively used
+  const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState([]);
   const [settling, setSettling] = useState(false);
   const [settleResult, setSettleResult] = useState(null);
 
-  // State for the new transaction form
-  const [newTransaction, setNewTransaction] = useState(
-    initialNewTransactionState(currentUserId, event?.is_owner)
-  );
+  // Initialize usedBy to include the current user's ID by default
+  const [usedBy, setUsedBy] = useState([user?.id].filter(id => id != null));
 
-  // State for who used/shared the expense
-  const [usedBy, setUsedBy] = useState([]);
+  // Note: The original code passed user?.id || "" to payer_id,
+  // which means the user ID can be either a number or an empty string.
+  const [newTransaction, setNewTransaction] = useState({
+    payer_id: user?.id || "",
+    amount: "",
+    description: "",
+  });
+
   const [addingTransaction, setAddingTransaction] = useState(false);
 
-  // --- Data Fetching Logic ---
+  useEffect(() => {
+    fetchEventData();
+    fetchUsers();
+  }, [eventId]);
 
-  const fetchEventData = useCallback(async () => {
+// --- Correction/Adjustment for the Payer/UsedBy sync logic ---
+// Ensure the ID is a number when checking/setting usedBy
+useEffect(() => {
+  const payerId = Number(newTransaction.payer_id);
+  if (payerId) {
+    // If a payer is selected, they should be in the usedBy list
+    setUsedBy((prev) => {
+      // Keep only unique numeric IDs, and ensure the payer is present
+      const currentIds = prev.map(Number);
+      if (!currentIds.includes(payerId)) {
+        return [...currentIds, payerId];
+      }
+      return currentIds;
+    });
+  }
+}, [newTransaction.payer_id]);
+
+  const fetchEventData = async () => {
     setLoading(true);
     try {
       const data = await fetchEventDetail(eventId);
@@ -58,23 +73,13 @@ const EventDetail = () => {
       setParticipants(data.participants || []);
       setTransactions(data.transactions || []);
       setErrors([]);
-
-      // Initialize newTransaction state *after* event data is available
-      setNewTransaction(initialNewTransactionState(currentUserId, data.event.is_owner));
-      // Initialize usedBy: Should default to the payer if one is set, or current user
-      // Since the payer defaults to the current user (if non-owner),
-      // we initialize usedBy to just the current user's ID
-      setUsedBy([currentUserId]);
-
     } catch (err) {
       setErrors([err.message || "Failed to fetch event details"]);
     } finally {
       setLoading(false);
     }
-  }, [eventId, currentUserId]);
+  };
 
-  /*
-  // fetchUsers wasn't being used effectively, so it's commented out/removed
   const fetchUsers = async () => {
     try {
       const data = await fetchAllUsers();
@@ -83,65 +88,45 @@ const EventDetail = () => {
       console.error("Failed to fetch all users:", err);
     }
   };
-  */
 
-  useEffect(() => {
-    fetchEventData();
-    // fetchUsers(); // See note above
-  }, [fetchEventData]);
-
-  // --- State/Effect for Payer Selection and UsedBy Synchronization ---
-
-  // ORIGINAL LOGIC: The original useEffect was triggering on every render
-  // because newTransaction.payer_id was being changed inside handleAddTransaction.
-  // The logic was also flawed for the owner case.
-
-  // CORRECTED LOGIC: When the Payer changes, update the 'usedBy' array.
-  // *If* the newly selected payer is NOT already in `usedBy`, they should be added
-  // (as the person who paid is generally assumed to be part of the expense).
-  useEffect(() => {
-    const payerId = Number(newTransaction.payer_id);
-    if (payerId && !usedBy.includes(payerId)) {
-      // We only force the payer into the usedBy list if they are explicitly selected
-      // and not already in the list. This is often desirable in split-bill apps.
-      // Alternatively, you could reset usedBy to [payerId] every time.
-      setUsedBy((prev) => [...prev.filter(id => id !== payerId), payerId]);
-    }
-  }, [newTransaction.payer_id]); // Trigger when the payer selection changes
-
-  const toggleUsedBy = (userId) => {
-    const numericUserId = Number(userId);
-    setUsedBy((prev) =>
-      prev.includes(numericUserId)
-        ? prev.filter((id) => id !== numericUserId)
-        : [...prev, numericUserId]
-    );
-  };
-
-  // --- Transaction and Settlement Logic ---
+// --- Correction/Adjustment for toggleUsedBy logic ---
+// Ensure the ID is a number when toggling
+const toggleUsedBy = (userId) => {
+  const numericUserId = Number(userId);
+  setUsedBy((prev) =>
+    prev.includes(numericUserId)
+      ? prev.filter((id) => id !== numericUserId)
+      : [...prev, numericUserId]
+  );
+};
 
   const handleAddTransaction = async (e) => {
     e.preventDefault();
 
-    // Check if amount is valid and there's at least one person sharing the expense
+    // Check for amount and if at least one user is selected
     if (!newTransaction.amount || usedBy.length === 0) return;
 
-    // Ensure payer_id is a number (essential for API)
-    const payerId = Number(newTransaction.payer_id);
+    // Non-owner → always use own ID
+    let finalPayerId = newTransaction.payer_id;
+    if (!event.is_owner) {
+      finalPayerId = user.id;
+    }
 
     setAddingTransaction(true);
-    setErrors([]); // Clear previous errors
-
     try {
       await addTransaction(eventId, {
         ...newTransaction,
-        payer_id: payerId, // Ensure it's the numeric ID
-        used_by: usedBy, // Pass the list of users who shared the expense
+        payer_id: finalPayerId, // Use the correct payer ID
+        used_by: usedBy, // Send the list of user IDs
       });
 
-      // Reset form state
-      setNewTransaction(initialNewTransactionState(currentUserId, event.is_owner));
-      setUsedBy([currentUserId]); // Default usedBy back to current user
+      // ✅ 5️⃣ Reset after submit: FULL RESET SNIPPET
+      setNewTransaction({
+        payer_id: event.is_owner ? "" : user.id,
+        amount: "",
+        description: "",
+      });
+      setUsedBy([]); // Reset usedBy after successful submission
 
       await fetchEventData(); // Refresh data
     } catch (err) {
@@ -159,15 +144,13 @@ const EventDetail = () => {
     try {
       const data = await settleDebts(eventId);
       setSettleResult(data);
-      await fetchEventData(); // Refresh data to show settlement transactions
+      await fetchEventData();
     } catch (err) {
       setErrors([err.message || "Failed to settle debts"]);
     } finally {
       setSettling(false);
     }
   };
-
-  // --- Render Logic ---
 
   if (loading) {
     return (
@@ -193,12 +176,6 @@ const EventDetail = () => {
       </div>
     );
   }
-
-  // Get the selected payer's ID
-  const selectedPayerId = Number(newTransaction.payer_id);
-  // Get the list of all potential users for the 'Used By' checkbox
-  const availableUsersForUsedBy = event.is_owner ? participants : participants.filter(p => p.id === currentUserId);
-
 
   return (
     <div style={{ backgroundColor: "#1a1d24", minHeight: "100vh", paddingBottom: "40px" }}>
@@ -236,7 +213,6 @@ const EventDetail = () => {
           </Card>
         )}
 
-        {/* Settlement Button - Only for Owner */}
         {event.is_owner && (
           <div className="mb-4">
             <Button
@@ -263,16 +239,7 @@ const EventDetail = () => {
           </div>
         )}
 
-        {/* Settle Result Message */}
-        {settleResult && (
-          <Card className="mb-4 p-3" style={{ backgroundColor: "#10b98120", border: "1px solid #10b981" }}>
-            <div style={{ color: "#10b981" }}>
-              Settlement complete! {settleResult.message || "Settlement transactions have been created."}
-            </div>
-          </Card>
-        )}
-
-        {/* Participants */}
+        {/* Participants (omitted for brevity, assume content is correct) */}
         <Card className="mb-4" style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}>
           <Card.Body style={{ padding: "24px" }}>
             <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>
@@ -301,7 +268,7 @@ const EventDetail = () => {
                           color: "#10b981",
                         }}
                       >
-                        ${p.total_spent ? Number(p.total_spent).toFixed(2) : '0.00'}
+                        ${Number(p.total_spent).toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -313,14 +280,13 @@ const EventDetail = () => {
           </Card.Body>
         </Card>
 
-        {/* Transactions and Add Transaction Form */}
+        {/* Transactions */}
         <Card style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px" }}>
           <Card.Body style={{ padding: "24px" }}>
             <h5 className="text-light mb-3" style={{ fontSize: "18px", fontWeight: "600" }}>
               Expenses
             </h5>
 
-            {/* Existing Transactions List */}
             {transactions.length ? (
               <div
                 style={{
@@ -361,17 +327,6 @@ const EventDetail = () => {
                           {txn.description}
                         </div>
                       )}
-                      {txn.shared_by && (
-                        <div
-                          style={{
-                            marginTop: "4px",
-                            color: "#9ca3af",
-                            fontSize: "12px",
-                          }}
-                        >
-                          Shared by: {txn.shared_by}
-                        </div>
-                      )}
                     </li>
                   ))}
                 </ul>
@@ -380,10 +335,11 @@ const EventDetail = () => {
               <p style={{ color: "#9ca3af", marginBottom: "20px" }}>No expenses yet</p>
             )}
 
-            {/* Add transaction Form */}
+            {/* Add transaction */}
+            {/* Changed from <Form className="d-flex gap-2"> to use onSubmit for better form handling */}
             <Form onSubmit={handleAddTransaction}>
               <div className="d-flex gap-2 mb-3">
-                {/* 1. Payer Selection */}
+                {/* Owner → full control */}
                 {event.is_owner ? (
                   <Form.Select
                     value={newTransaction.payer_id}
@@ -396,9 +352,9 @@ const EventDetail = () => {
                     style={{
                       backgroundColor: "#1a1d24",
                       border: "1px solid #2d3139",
-                      color: selectedPayerId ? "#fff" : "#9ca3af",
+                      color: newTransaction.payer_id ? "#fff" : "#9ca3af",
                       borderRadius: "8px",
-                      flex: 1, // Use flex for layout control
+                      flex: 1,
                     }}
                   >
                     <option value="">Who paid</option>
@@ -423,12 +379,11 @@ const EventDetail = () => {
                   />
                 )}
 
-                {/* 2. Amount Input */}
                 <Form.Control
                   type="number"
                   step="0.01"
                   placeholder="Amount"
-                  required
+                  required // Added required
                   value={newTransaction.amount}
                   onChange={(e) =>
                     setNewTransaction({
@@ -441,11 +396,10 @@ const EventDetail = () => {
                     border: "1px solid #2d3139",
                     color: "#fff",
                     borderRadius: "8px",
-                    maxWidth: "150px", // Keep amount field narrower
+                    maxWidth: "120px",
                   }}
                 />
 
-                {/* 3. Description Input */}
                 <Form.Control
                   type="text"
                   placeholder="Description (optional)"
@@ -466,45 +420,42 @@ const EventDetail = () => {
                 />
               </div>
 
-              {/* 4. Used By Checkboxes (Only show if a payer is selected/set) */}
-              {(event.is_owner && selectedPayerId) || !event.is_owner ? (
-                <div className="mb-3" style={{ color: "#fff", fontSize: "14px" }}>
-                  <label className="d-block mb-2">Split the expense with:</label>
-                  <div className="d-flex flex-wrap gap-3">
-                    {participants.map((p) => {
-                      const isDisabled = selectedPayerId === p.id && !event.is_owner;
-                      return (
-                        <Form.Check
-                          key={p.id}
-                          type="checkbox"
-                          id={`used-by-${p.id}`}
-                          label={p.username}
-                          checked={usedBy.includes(Number(p.id))}
-                          onChange={() => toggleUsedBy(p.id)}
-                          disabled={isDisabled} // Disable checkbox if non-owner is the payer (and they must be included)
-                          style={{
-                            paddingLeft: "1.5em",
-                            color: isDisabled ? "#6c757d" : "#fff"
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
+              {/* ✅ 6️⃣ Add “Who used this?” UI */}
+              {/* Note: Moved Form.Check into a flex container for better dark-mode visibility/layout */}
+              <div className="mb-3" style={{ width: "100%", marginTop: "12px" }}>
+                <div style={{ color: "#9ca3af", fontSize: "14px", marginBottom: "6px" }}>
+                  Who used this?
                 </div>
-              ) : null}
 
+                <div className="d-flex flex-wrap gap-3">
+                  {participants.map((p) => {
+                    // Disable checkbox for non-owner if it's their own ID, to ensure they are always included
+                    const isDisabled = !event.is_owner && Number(p.id) === Number(user.id);
+                    return (
+                      <Form.Check
+                        key={p.id}
+                        type="checkbox"
+                        label={p.username}
+                        checked={usedBy.includes(p.id)}
+                        onChange={() => toggleUsedBy(p.id)}
+                        disabled={isDisabled}
+                        style={{ color: "#e5e7eb" }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
 
-              {/* 5. Submit Button */}
               <Button
-                type="submit"
+                type="submit" // Use type="submit" for Form handling
+                // onClick={handleAddTransaction} (Removed onClick since form handles submit)
+                // ✅ 7️⃣ Prevent empty submit: Updated disabled condition
                 disabled={addingTransaction || !newTransaction.amount || usedBy.length === 0}
                 style={{
                   background: "linear-gradient(135deg, #3b82f6, #10b981)",
                   border: "none",
                   borderRadius: "8px",
                   fontWeight: "600",
-                  width: "100%", // Full width button
-                  padding: "10px 0",
                 }}
               >
                 {addingTransaction ? "Adding..." : "Add expense"}
