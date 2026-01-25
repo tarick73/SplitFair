@@ -4,104 +4,187 @@ const API_BASE_URL = 'http://localhost:8000';
 
 // === Axios instance ===
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true, // cookies for session-based auth
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true, // cookies for session-based auth
 });
+
+// src/services/api.js
+export async function fetchAllUsers() {
+  const res = await fetch("http://localhost:8000/api/users/", { credentials: "include" });
+  if (!res.ok) throw new Error("Failed to fetch users");
+  return res.json();
+}
+
 
 // === CSRF token management ===
 let csrfToken = null;
 
 const getCsrfTokenFromCookie = () => {
-  const name = 'csrftoken';
-  const cookies = document.cookie.split(';');
-  for (let cookie of cookies) {
-    const trimmed = cookie.trim();
-    if (trimmed.startsWith(name + '=')) {
-      return trimmed.substring(name.length + 1);
-    }
-  }
-  return null;
+  const name = 'csrftoken';
+  const cookies = document.cookie.split(';');
+  for (let cookie of cookies) {
+    const trimmed = cookie.trim();
+    if (trimmed.startsWith(name + '=')) {
+      return trimmed.substring(name.length + 1);
+    }
+  }
+  return null;
 };
 
 export const fetchCsrfToken = async () => {
-  try {
-    const response = await api.get('/csrf-token/');
-    if (response.data?.csrfToken) {
-      csrfToken = response.data.csrfToken;
-      return csrfToken;
-    }
+  try {
+    const response = await api.get('/csrf-token/');
+    if (response.data?.csrfToken) {
+      csrfToken = response.data.csrfToken;
+      return csrfToken;
+    }
 
-    // fallback to cookie
-    const cookieToken = getCsrfTokenFromCookie();
-    if (cookieToken) {
-      csrfToken = cookieToken;
-      return cookieToken;
-    }
+    // fallback to cookie
+    const cookieToken = getCsrfTokenFromCookie();
+    if (cookieToken) {
+      csrfToken = cookieToken;
+      return cookieToken;
+    }
 
-    console.error('CSRF token not found!');
-    return null;
-  } catch (error) {
-    const cookieToken = getCsrfTokenFromCookie();
-    if (cookieToken) {
-      csrfToken = cookieToken;
-      return cookieToken;
-    }
-    throw error;
-  }
+    console.error('CSRF token not found!');
+    return null;
+  } catch (error) {
+    const cookieToken = getCsrfTokenFromCookie();
+    if (cookieToken) {
+      csrfToken = cookieToken;
+      return cookieToken;
+    }
+    throw error;
+  }
 };
 
 const ensureCsrfToken = async () => {
-  if (!csrfToken) await fetchCsrfToken();
-  return csrfToken;
+  if (!csrfToken) await fetchCsrfToken();
+  return csrfToken;
 };
 
 // === API Functions ===
 
 // Отримати список подій
 export async function fetchEvents() {
-  try {
-    const response = await api.get("/api/events/");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching events:", error);
-    throw error;
-  }
+  try {
+    const response = await api.get("/api/events/");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    throw error;
+  }
 }
 
 // Створити нову подію
 export async function createEvent(data) {
-  try {
-    await ensureCsrfToken();
-    const response = await api.post("/api/events/create/", data);
-    return response.data;
-  } catch (error) {
-    console.error("Error creating event:", error);
-    throw error;
-  }
+  try {
+    const response = await api.post("/api/events/create/", data);
+    return response.data;
+  } catch (error) {
+    console.error("Error creating event:", error);
+    throw error;
+  }
+}
+
+// 🟢 ФУНКЦІЯ: Приєднатися до події за кодом (ВИПРАВЛЕНО)
+export async function joinEvent(eventCode) {
+    await ensureCsrfToken(); 
+
+    try {
+        // ВИПРАВЛЕНО: Надсилаємо дані під ключем 'code', як очікує Django View.
+        const response = await api.post("/api/events/join/", { 
+            code: eventCode 
+        });
+        
+        // Ваш views.py повертає {'event': {'id': ...}}
+        if (response.data?.event?.id) {
+            return response.data.event.id; 
+        }
+        
+        throw new Error("Join successful, but event ID was not returned.");
+
+    } catch (error) {
+        // Обробка помилок Axios (наприклад, 400/404)
+        const errorMessage = 
+            error.response?.data?.error || 
+            error.response?.data?.detail || 
+            "Invalid event code or server error.";
+            
+        throw new Error(errorMessage);
+    }
+}
+
+
+// Отримати деталі події
+export async function fetchEventDetail(eventId) {
+  try {
+    const response = await api.get(`/api/events/${eventId}/`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching event detail:", error);
+    throw error;
+  }
+}
+
+// Додати учасника
+export async function addParticipant(eventId, data) {
+  try {
+    await ensureCsrfToken();
+    const response = await api.post(`/api/events/${eventId}/participants/`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error adding participant:", error);
+    throw error;
+  }
+}
+
+// Додати витрату (транзакцію)
+export async function addTransaction(eventId, data) {
+  try {
+    await ensureCsrfToken();
+    const response = await api.post(`/api/events/${eventId}/transactions/`, data);
+    return response.data;
+  } catch (error) {
+    console.error("Error adding transaction:", error);
+    throw error;
+  }
+}
+
+// Розрахувати борги (settle)
+export async function settleDebts(eventId) {
+  try {
+    await ensureCsrfToken();
+    const response = await api.post(`/api/events/${eventId}/settle/`);
+    return response.data;
+  } catch (error) {
+    console.error("Error settling debts:", error);
+    throw error;
+  }
 }
 
 // === Axios interceptors ===
 api.interceptors.request.use(
-  async (config) => {
-    if (['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
-      const token = await ensureCsrfToken();
-      if (token) config.headers['X-CSRFToken'] = token;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
+  async (config) => {
+    if (['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
+      const token = await ensureCsrfToken();
+      if (token) config.headers['X-CSRFToken'] = token;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 403) csrfToken = null;
-    if (error.response?.status === 401) localStorage.removeItem('user');
-    return Promise.reject(error);
-  }
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 403) csrfToken = null;
+    if (error.response?.status === 401) localStorage.removeItem('user');
+    return Promise.reject(error);
+  }
 );
 
 // === Auth service ===

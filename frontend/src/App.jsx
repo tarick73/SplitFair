@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
+import EventDetail from "./pages/EventDetail";  // 👈 Додай імпорт
 import ProtectedRoute from "./components/ProtectedRoute";
 import { authService } from './services/api';
+
 
 function App() {
   useEffect(() => {
@@ -21,6 +23,15 @@ function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      {/* 👇 Додай новий роут для деталей події */}
+      <Route
+        path="/events/:eventId"
+        element={
+          <ProtectedRoute>
+            <EventDetail />
           </ProtectedRoute>
         }
       />

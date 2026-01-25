@@ -1,61 +1,104 @@
 import React, { useEffect, useState } from "react";
-import { createEvent, fetchEvents } from "../services/api";  // 👈 Додано fetchEvents
-
+import { useNavigate } from "react-router-dom";
+import { fetchEvents, authService, joinEvent } from "../services/api.js"; 
+import CreateEventForm from "../components/CreateEventForm.jsx";
 import {
   Container,
   Card,
   Button,
-  Modal,
-  Form,
   Spinner,
   InputGroup,
+  Form,
+  Alert,
 } from "react-bootstrap";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  
   const [events, setEvents] = useState([]);
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal] = useState(false); 
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [formData, setFormData] = useState({ title: "" });
 
-  // 🔁 Fetch Events - ОНОВЛЕНИЙ
+  const [joinCode, setJoinCode] = useState("");
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinError, setJoinError] = useState(null); 
+
+  const styles = {
+    bgColorPrimary: "#1a1d24", 
+    bgColorSecondary: "#24282f", 
+    borderColor: "#2d3139",
+    textColor: "#e5e7eb",
+    textMuted: "#9ca3af",
+    accentColor: "#6366f1",
+    successColor: "#10b981",
+    gradientButton: "linear-gradient(135deg, #3b82f6, #10b981)",
+  };
+
   useEffect(() => {
-    const loadEvents = async () => {
+    const loadData = async () => {
       try {
-        const data = await fetchEvents();  // 👈 Використовуємо функцію з api.js
+        if (authService.init) await authService.init(); 
+        const data = await fetchEvents();
         setEvents(data);
       } catch (err) {
-        console.error("❌ Error fetching events:", err);
+        console.error("❌ Error loading data:", err);
       } finally {
         setLoading(false);
       }
     };
-
-    loadEvents();
+    loadData();
   }, []);
 
- 
-  // ➕ Create Event
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.title.trim()) return;
-
-    setCreating(true);
+  const handleLogout = async () => {
     try {
-      const newEvent = await createEvent(formData);
-      setEvents((prev) => [newEvent, ...prev]);  // 👈 Додаємо на початок списку
-      setFormData({ title: "" });
-      setShowModal(false);
-    } catch (err) {
-      alert("⚠️ Error creating event: " + err.message);
-    } finally {
-      setCreating(false);
+      if (authService.logout) await authService.logout(); 
+      navigate('/');
+    } catch (error) {
+      console.error("❌ Logout failed:", error);
+      localStorage.removeItem('user'); 
+      navigate('/'); 
     }
   };
 
-  // 🧠 Helpers
+  const handleNewEvent = () => {
+    setShowModal(false);
+    setLoading(true); 
+    fetchEvents()
+        .then(setEvents)
+        .catch(err => console.error("Error refreshing list:", err))
+        .finally(() => setLoading(false));
+  };
+
+  // 🟢 Join Event Handler
+  const handleJoinEvent = async (e) => {
+    e.preventDefault();
+    setJoinError(null);
+
+    const code = joinCode.toUpperCase().trim();
+    if (!code) {
+      setJoinError("Будь ласка, введіть код події.");
+      return;
+    }
+
+    setIsJoining(true);
+    try {
+      const eventId = await joinEvent(code); 
+      
+      // ✅ Важливо: шлях має співпадати з твоїм маршрутом у App.js
+      navigate(`/events/${eventId}`); 
+      setJoinCode("");
+      fetchEvents().then(setEvents); 
+      
+    } catch (error) {
+      const errorMessage = error.message || "Невірний код або помилка сервера.";
+      setJoinError(errorMessage);
+      console.error("Join event failed:", error);
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
   const filteredEvents = events.filter((e) =>
     e.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -64,53 +107,86 @@ const Dashboard = () => {
   const colors = ["#3b82f6", "#10b981", "#8b5cf6", "#ec4899", "#f59e0b"];
 
   return (
-    <div style={{ backgroundColor: "#1a1d24", minHeight: "100vh" }}>
+    <div style={{ backgroundColor: styles.bgColorPrimary, minHeight: "100vh" }}>
       {/* Header */}
       <header
         style={{
-          backgroundColor: "#24282f",
+          backgroundColor: styles.bgColorSecondary,
           borderBottom: "1px solid #2d3139",
           padding: "16px 0",
         }}
       >
         <Container>
-          <h1 className="text-light fw-semibold mb-0">Events</h1>
+          <div className="d-flex justify-content-between align-items-center">
+            <h1 className="text-light fw-semibold mb-0">Events</h1>
+            <Button
+              variant="outline-secondary"
+              onClick={handleLogout} 
+              style={{
+                color: "#9ca3af",
+                borderColor: "#374151",
+                fontWeight: "500",
+              }}
+            >
+              Logout
+            </Button>
+          </div>
         </Container>
       </header>
 
       {/* Main Content */}
       <Container style={{ paddingTop: "32px", paddingBottom: "32px" }}>
+        
+        {/* Join Event */}
+        <Card className="mb-4 shadow" style={{ backgroundColor: styles.bgColorSecondary, border: `1px solid ${styles.borderColor}`, borderRadius: "12px" }}>
+            <Card.Body className="p-4">
+                <h4 className="text-light fw-bold mb-3">Join existing event</h4>
+                <Form onSubmit={handleJoinEvent}>
+                    <InputGroup>
+                        <Form.Control
+                            type="text"
+                            placeholder="Enter event code"
+                            value={joinCode}
+                            onChange={(e) => { setJoinCode(e.target.value); setJoinError(null); }}
+                            required
+                            style={{
+                                backgroundColor: styles.bgColorPrimary,
+                                border: `1px solid ${styles.borderColor}`,
+                                color: "#fff",
+                                boxShadow: "none",
+                            }}
+                        />
+                        <Button
+                            type="submit"
+                            disabled={isJoining || !joinCode.trim()}
+                            style={{
+                                background: styles.gradientButton,
+                                border: "none",
+                                padding: "10px 20px",
+                            }}
+                        >
+                            {isJoining ? <Spinner animation="border" size="sm" /> : "Join"}
+                        </Button>
+                    </InputGroup>
+                    {joinError && (
+                        <Alert variant="danger" className="mt-3 py-2 text-sm" style={{ backgroundColor: '#444', color: '#ff4d4d', borderColor: '#ff4d4d' }}>
+                           {joinError}
+                        </Alert>
+                    )}
+                </Form>
+            </Card.Body>
+        </Card>
+
         {/* Search Bar */}
-        <div
-          style={{
-            backgroundColor: "#24282f",
-            borderRadius: "12px",
-            padding: "16px",
-            marginBottom: "24px",
-          }}
-        >
+        <div style={{ backgroundColor: "#24282f", borderRadius: "12px", padding: "16px", marginBottom: "24px" }}>
           <InputGroup>
-            <InputGroup.Text
-              style={{
-                backgroundColor: "transparent",
-                border: "none",
-                color: "#6b7280",
-                paddingLeft: "0",
-              }}
-            >
-              🔍
-            </InputGroup.Text>
+            <InputGroup.Text style={{ backgroundColor: "transparent", border: "none", color: "#6b7280", paddingLeft: "0" }}>🔍</InputGroup.Text>
             <Form.Control
               type="text"
               placeholder="Search events..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                backgroundColor: "transparent",
-                border: "none",
-                color: "#d1d5db",
-                boxShadow: "none",
-              }}
+              style={{ backgroundColor: "transparent", border: "none", color: "#d1d5db", boxShadow: "none" }}
             />
           </InputGroup>
         </div>
@@ -131,56 +207,24 @@ const Dashboard = () => {
             {filteredEvents.map((event, i) => (
               <Card
                 key={event.id}
-                style={{
-                  backgroundColor: "#24282f",
-                  border: "none",
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  transition: "0.2s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#2d3139")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#24282f")
-                }
+                onClick={() => navigate(`/events/${event.id}`)}
+                style={{ backgroundColor: "#24282f", border: "none", borderRadius: "12px", cursor: "pointer", transition: "0.2s" }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#2d3139"}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#24282f"}
               >
                 <Card.Body>
                   <div className="d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center gap-3">
-                      <div
-                        style={{
-                          width: "48px",
-                          height: "48px",
-                          borderRadius: "12px",
-                          backgroundColor: colors[i % colors.length],
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#fff",
-                          fontWeight: "600",
-                          fontSize: "20px",
-                        }}
-                      >
+                      <div style={{ width: "48px", height: "48px", borderRadius: "12px", backgroundColor: colors[i % colors.length], display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: "600", fontSize: "20px" }}>
                         {getInitial(event.title)}
                       </div>
                       <div>
                         <h5 className="text-light mb-1">{event.title}</h5>
-                        <small style={{ color: "#9ca3af" }}>
-                          Created by {event.owner}
-                        </small>
+                        <small style={{ color: "#9ca3af" }}>Created by {event.owner}</small>
                       </div>
                     </div>
                     <div className="text-end">
-                      <div
-                        style={{
-                          color: "#10b981",
-                          fontWeight: "600",
-                          fontSize: "18px",
-                        }}
-                      >
-                        {event.participants_count}
-                      </div>
+                      <div style={{ color: "#10b981", fontWeight: "600", fontSize: "18px" }}>{event.participants_count || 0}</div>
                       <small style={{ color: "#9ca3af" }}>participants</small>
                     </div>
                   </div>
@@ -194,89 +238,12 @@ const Dashboard = () => {
       {/* Floating + Button */}
       <Button
         onClick={() => setShowModal(true)}
-        style={{
-          position: "fixed",
-          bottom: "32px",
-          right: "32px",
-          width: "64px",
-          height: "64px",
-          borderRadius: "50%",
-          background: "linear-gradient(135deg, #3b82f6, #10b981)",
-          border: "none",
-          fontSize: "32px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
-        }}
+        style={{ position: "fixed", bottom: "32px", right: "32px", width: "64px", height: "64px", borderRadius: "50%", background: "linear-gradient(135deg, #3b82f6, #10b981)", border: "none", fontSize: "32px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}
       >
         +
       </Button>
 
-      {/* Create Event Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <div style={{ backgroundColor: "#24282f", borderRadius: "12px" }}>
-          <Modal.Header
-            closeButton
-            closeVariant="white"
-            style={{
-              backgroundColor: "#24282f",
-              borderBottom: "1px solid #2d3139",
-            }}
-          >
-            <Modal.Title className="text-light">Create New Event</Modal.Title>
-          </Modal.Header>
-          <Form onSubmit={handleSubmit}>
-            <Modal.Body>
-              <Form.Group>
-                <Form.Label className="text-light">Event Title</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter event title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ title: e.target.value })}
-                  required
-                  style={{
-                    backgroundColor: "#1a1d24",
-                    border: "1px solid #2d3139",
-                    color: "#fff",
-                    padding: "12px",
-                  }}
-                />
-              </Form.Group>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button
-                variant="secondary"
-                onClick={() => setShowModal(false)}
-                disabled={creating}
-                style={{
-                  backgroundColor: "#374151",
-                  border: "none",
-                  padding: "10px 24px",
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={creating}
-                style={{
-                  background: "linear-gradient(135deg, #3b82f6, #10b981)",
-                  border: "none",
-                  padding: "10px 24px",
-                }}
-              >
-                {creating ? (
-                  <>
-                    <Spinner animation="border" size="sm" className="me-2" />
-                    Creating...
-                  </>
-                ) : (
-                  "Create"
-                )}
-              </Button>
-            </Modal.Footer>
-          </Form>
-        </div>
-      </Modal>
+      <CreateEventForm show={showModal} handleClose={() => setShowModal(false)} onEventCreated={handleNewEvent} />
     </div>
   );
 };
